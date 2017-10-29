@@ -21,6 +21,13 @@ class DLProgress(tqdm):
         self.update((block_num - self.last_block) * block_size)
         self.last_block = block_num
 
+def print_data_info(images, labels):
+    print('\nimages')
+    print(type(images))
+    print(images.shape)
+    print('\nlabels')
+    print(type(labels))
+    print(labels.shape, '\n')
 
 def maybe_download_pretrained_vgg(data_dir):
     """

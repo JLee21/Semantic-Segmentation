@@ -1,4 +1,6 @@
 import os.path
+import os; os.system('cls')
+import sys
 import tensorflow as tf
 import helper
 import warnings
@@ -10,6 +12,7 @@ from termcolor import cprint
 # Check TensorFlow Version
 assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), \
     'Use TensorFlow version 1.0 or newer.  You have {}'.format(tf.__version__)
+print('Python Version: {}'.format(sys.version))
 print('TensorFlow Version: {}'.format(tf.__version__))
 
 # Check for a GPU
@@ -45,6 +48,7 @@ def load_vgg(sess, vgg_path):
     layer4_out  = graph.get_tensor_by_name(vgg_layer4_out_tensor_name)
     layer7_out  = graph.get_tensor_by_name(vgg_layer7_out_tensor_name)
 
+    cprint('VGG16 Loaded', 'blue', 'on_white')
     return image_input, keep_prob, layer3_out, layer4_out, layer7_out
 tests.test_load_vgg(load_vgg, tf)
 
@@ -58,37 +62,41 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :param num_classes: Number of classes to classify
     :return: The Tensor for the last layer of output
     """
+    # H E L P E R S
+    # kernel_regularizer = tf.contrib.layers.l2_reqularizer(scale=1e-3)
+    print('\n C O N V O L U T I O N')
+    print('vgg_layer3_out shape: {}\t{}'.format(vgg_layer3_out.get_shape(), tf.shape(vgg_layer3_out)))
+    print('vgg_layer4_out shape: {}\t{}'.format(vgg_layer4_out.get_shape(), tf.shape(vgg_layer4_out)))
+    print('vgg_layer7_out shape: {}\t{}'.format(vgg_layer7_out.get_shape(), tf.shape(vgg_layer7_out)))
 
-    # conv1 = tf.nn.conv2d()
-    # conv1 += biases[]
-    # conv1 = tf.nn.relu(conv1)
-    # pool1 = tf.nn.max_pool(conv1)
-    #
-    # conv2 = tf.nn.conv2d()
-    # conv2 += biases
-    # conv2 = tf.nn.relu(conv2)
-    # pool2 = tf.nn.max_pool(conv2)
-    #
-    # conv3 = tf.nn.conv2d()
-    # conv3 += biases
-    # conv3 = tf.nn.relu(conv3)
-    # pool3 = tf.nn.max_pool(conv3)
-    #
-    conv_1x1 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=(1,1),
-        padding='same', kernel_regularizer=tf.contrib.layers.l2_reqularizer(1e-3))
+    # C O N V O L U T I O N
+    # we already have the 'convolution' part from the downloaded VGG16 model
+    # layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, kernel_size=4, strides=(1, 1), padding='same')
+    # layer3 = tf.nn.relu(layer3)
+    # layer3 = tf.nn.max_pool(layer3, ksize=[1,2,2,1], strides=[1,2,2,1], padding='same')
+    # here, just add a 1x1 convolution aka layer7
+    layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1))
+    print('layer7 shape: {}\t{}'.format(layer7.get_shape(), tf.shape(layer7)))
+    tf.Print(layer7, [tf.shape(layer7)])
 
-    input = tf.layers.conv2d_transpose(conv_1x1, num_classes, 4, strides=(2,2),
-        padding='same', kernel_regularizer=tf.contrib.layers.l2_reqularizer(1e-3))
+    # D E C O D E R /  T R A N S P O S E
+    print('\nD E C O D E R')
+    tran_layer1 = tf.layers.conv2d_transpose(layer7, num_classes, 4, strides=(2,2),
+        padding='same', name='tran_layer1')
+    print('tran_layer1 shape: {}\t{}'.format(tran_layer1.get_shape(), tf.shape(tran_layer1)))
 
-    # input = tf.add(input, pool3)
+    tran_layer2 = tf.layers.conv2d_transpose(tran_layer1, num_classes, kernel_size=4,
+        strides=(2,2), padding='same', name='tran_layer2')
+    print('tran_layer2 shape: {}\t{}'.format(tran_layer2.get_shape(), tf.shape(tran_layer2)))
 
-    # input = tf.add(input, pool_3)
-    output = tf.layers.conv2d_transpose(input, num_classes, 16, strides=(8, 8))
+    tran_layer3 = tf.layers.conv2d_transpose(tran_layer2, num_classes, kernel_size=4,
+        strides=(2,2), padding='same', name='tran_layer3')
+    print('tran_layer3 shape: {}\t{}'.format(tran_layer3.get_shape(), tf.shape(tran_layer3)))
 
-    # this will print the shape after the layer is contructed?
-    tf.Print(output, [tf.shape(output)])
+    tf.Print(layer7, [tf.shape(layer7)], message= 'Shape of layer7')
 
-    return nn_last_layer
+    cprint('Layers Constructed', 'blue', 'on_white')
+    return tran_layer3
 # tests.test_layers(layers)
 
 
@@ -103,7 +111,7 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     """
     logits = tf.reshape(nn_last_layer, (-1, num_classes))
 
-    softmax = tf.nn.softmax_cross_entropy_with_logits(logits, correct_label)
+    softmax = tf.nn.softmax_cross_entropy_with_logits(labels=correct_label, logits=logits)
     cross_entropy_loss = tf.reduce_mean(softmax)
 
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
@@ -128,6 +136,11 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param keep_prob: TF Placeholder for dropout keep probability
     :param learning_rate: TF Placeholder for learning rate
     """
+    image_shape = (160, 576)
+    x = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 3), name='image_holder')
+    y = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 2), name='label_holder')
+    x = input_image
+    y = correct_label
 
     for i in range(epochs):
         for images, labels in get_batches_fn(batch_size):
@@ -159,7 +172,8 @@ def run():
         vgg_path = os.path.join(data_dir, 'vgg')
         # Create function to get batches
         get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
-
+        images, labels = next(get_batches_fn(1))
+        helper.print_data_info(images, labels)
 
         #
         # # OPTIONAL: Augment Images for better results
@@ -168,14 +182,31 @@ def run():
         # # TODO: Build NN using load_vgg, layers, and optimize function
         image_input, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
         #
-        nn_last_layer = layers(keep_prob, layer3_out, layer4_out, layer7_out, num_classes)
-        #
-        # logits, train_op, cross_entropy_loss = optimize( nn_last_layer, , LRN_RATE, num_classes=)
-        #
+        nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
+
+        # O P T I M I Z E
+        correct_label_holder = tf.placeholder(tf.float32,
+                                              shape=(None, image_shape[0], image_shape[1], num_classes),
+                                              name='correct_label_holder')
+        # correct_label_holder = tf.reshape(correct_label_holder, (-1, num_classes))
+        logits, train_op, cross_entropy_loss = optimize(nn_last_layer,
+                                                        correct_label_holder,
+                                                        LRN_RATE,
+                                                        num_classes)
+
+        # T R A I N
         # # TODO: Train NN using the train_nn function
-        # cprint('Training...', 'blue', 'on_white')
-        # train_nn(sess, EPOCHS, BATCH_SIZE, get_batches_fn, train_op, cross_entropy_loss, image_input,
-        #          correct_label=, keep_prob, LRN_RATE)
+        cprint('Training...', 'blue', 'on_white')
+        train_nn(sess=sess,
+                 epochs=EPOCHS,
+                 batch_size=BATCH_SIZE,
+                 get_batches_fn=get_batches_fn,
+                 train_op=train_op,
+                 cross_entropy_loss=cross_entropy_loss,
+                 input_image=image_input,
+                 correct_label=correct_label_holder,
+                 keep_prob=keep_prob,
+                 learning_rate=LRN_RATE)
         #
         # # TODO: Save inference data using helper.save_inference_samples
         # helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
