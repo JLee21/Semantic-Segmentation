@@ -69,12 +69,19 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     print('vgg_layer4_out shape: {}\t{}'.format(vgg_layer4_out.get_shape(), tf.shape(vgg_layer4_out)))
     print('vgg_layer7_out shape: {}\t{}'.format(vgg_layer7_out.get_shape(), tf.shape(vgg_layer7_out)))
 
+    # do i have to do the convolutional part if i already have the layers from vgg?
+    #   do i have to know the shape. do i need to change the shape?
+    #   should i add biases? don't you typically add biases even in a trained model
+    #   the alexnet example just takes a numpy matrix and loads those guys into
+    # where is the input image specified in? where is the entry point?
+    #
+
     # C O N V O L U T I O N
     # we already have the 'convolution' part from the downloaded VGG16 model
     # layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, kernel_size=4, strides=(1, 1), padding='same')
     # layer3 = tf.nn.relu(layer3)
     # layer3 = tf.nn.max_pool(layer3, ksize=[1,2,2,1], strides=[1,2,2,1], padding='same')
-    # here, just add a 1x1 convolution aka layer7
+    # here, we are adding a 1x1 convolution instead of creating a fully-connected layer
     layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1))
     print('layer7 shape: {}\t{}'.format(layer7.get_shape(), tf.shape(layer7)))
     tf.Print(layer7, [tf.shape(layer7)])
@@ -144,7 +151,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
 
     for i in range(epochs):
         for images, labels in get_batches_fn(batch_size):
-            loss = sess.run(train_op, feed_dict={x: images, y: labels, keep_prob: keep_prob})
+            loss = sess.run(train_op, feed_dict={x: images, y: labels, keep_prob: 0.5})
 
 
 # tests.test_train_nn(train_nn)
