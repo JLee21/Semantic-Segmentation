@@ -74,37 +74,41 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     #   should i add biases? don't you typically add biases even in a trained model
     #   the alexnet example just takes a numpy matrix and loads those guys into
     # where is the input image specified in? where is the entry point?
-    #
 
-    # C O N V O L U T I O N
+    # R E S A M P L E
     # we already have the 'convolution' part from the downloaded VGG16 model
-    # layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, kernel_size=4, strides=(1, 1), padding='same')
-    # layer3 = tf.nn.relu(layer3)
-    # layer3 = tf.nn.max_pool(layer3, ksize=[1,2,2,1], strides=[1,2,2,1], padding='same')
     # here, we are adding a 1x1 convolution instead of creating a fully-connected layer
-    layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1))
+    # resample vgg_layer7_out by 1x1 Convolution: To go from ?x5x18x4096 to ?x5x18x2
+    layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1), padding='same')
     print('layer7 shape: {}\t{}'.format(layer7.get_shape(), tf.shape(layer7)))
     tf.Print(layer7, [tf.shape(layer7)])
 
-    # D E C O D E R /  T R A N S P O S E
-    print('\nD E C O D E R')
-    tran_layer1 = tf.layers.conv2d_transpose(layer7, num_classes, 4, strides=(2,2),
-        padding='same', name='tran_layer1')
-    print('tran_layer1 shape: {}\t{}'.format(tran_layer1.get_shape(), tf.shape(tran_layer1)))
+    # upsample vgg_layer7_out_resampled: by factor of 2 in order to go from ?x5x18x2 to ?x10x36x2
+    vgg_layer7 = tf.layers.conv2d_transpose(layer7, num_classes, 4, 2, padding='same', name='vgg_layer7')
+    print('vgg_layer7 shape: {}\t{}'.format(vgg_layer7.get_shape(), tf.shape(vgg_layer7)))
 
-    tran_layer2 = tf.layers.conv2d_transpose(tran_layer1, num_classes, kernel_size=4,
-        strides=(2,2), padding='same', name='tran_layer2')
-    print('tran_layer2 shape: {}\t{}'.format(tran_layer2.get_shape(), tf.shape(tran_layer2)))
+    # resample vgg_layer4_out out by 1x1 Convolution: To go from ?x10x36x512 to ?x10x36x2
+    vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1, 1), padding='same')
 
-    tran_layer3 = tf.layers.conv2d_transpose(tran_layer2, num_classes, kernel_size=4,
-        strides=(2,2), padding='same', name='tran_layer3')
-    print('tran_layer3 shape: {}\t{}'.format(tran_layer3.get_shape(), tf.shape(tran_layer3)))
+    # combined_layer1 = tf.add(vgg_layer7, vgg_layer4)
+    combined_layer1 = tf.add(vgg_layer7, vgg_layer4)
 
-    tf.Print(layer7, [tf.shape(layer7)], message= 'Shape of layer7')
+    # fcn_layer2: upsample combined_layer1 by factor of 2 in order to go from ?x10x36x2 to ?x20x72x2
+    fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes, 4, 2, padding='same', name='fcn_layer2')
+
+    # resample vgg_layer3_out out by 1x1 Convolution: To go from ?x20x72x256 to ?x20x72x2
+    vgg_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, 1, padding='same')
+
+    # combined_layer2 = tf.add(vgg_layer3, fcn_layer2)
+    combined_layer2 = tf.add(vgg_layer3, fcn_layer2)
+
+    # upsample combined_layer2 by factor of 8 in order to go from ?x20x72x2 to ?x160x576x2
+    output = tf.layers.conv2d_transpose(combined_layer2, num_classes, 4, 8, padding='same', name='output_layer')
 
     cprint('Layers Constructed', 'blue', 'on_white')
-    return tran_layer3
-# tests.test_layers(layers)
+
+    return output
+tests.test_layers(layers)
 
 
 def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
@@ -146,13 +150,17 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     image_shape = (160, 576)
     x = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 3), name='image_holder')
     y = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 2), name='label_holder')
-    x = input_image
-    y = correct_label
+    keep_prob_value = tf.constant(0.5, dtype=tf.float32)
 
     for i in range(epochs):
         for images, labels in get_batches_fn(batch_size):
-            loss = sess.run(train_op, feed_dict={x: images, y: labels, keep_prob: 0.5})
-
+            cprint(labels.shape, 'red')
+            print(sess.run(tf.shape(keep_prob)))
+            loss = sess.run(train_op, feed_dict={input_image: images,
+                                                 correct_label: labels,
+                                                 keep_prob: keep_prob_value})
+        #     break
+        # break
 
 # tests.test_train_nn(train_nn)
 
@@ -164,7 +172,7 @@ def run():
     runs_dir = './runs'
     tests.test_for_kitti_dataset(data_dir)
     EPOCHS = 1
-    BATCH_SIZE = 16
+    BATCH_SIZE = 1
     LRN_RATE = 1e-3
 
     # Download pretrained vgg model
@@ -174,7 +182,10 @@ def run():
     # You'll need a GPU with at least 10 teraFLOPS to train on.
     #  https://www.cityscapes-dataset.com/
 
-    with tf.Session() as sess:
+    with tf.Session(graph=tf.Graph()) as sess:
+        writer = tf.summary.FileWriter('tensorboard')
+
+
         # Path to vgg model
         vgg_path = os.path.join(data_dir, 'vgg')
         # Create function to get batches
@@ -182,7 +193,6 @@ def run():
         images, labels = next(get_batches_fn(1))
         helper.print_data_info(images, labels)
 
-        #
         # # OPTIONAL: Augment Images for better results
         # #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
         #
@@ -190,12 +200,12 @@ def run():
         image_input, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
         #
         nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
+        writer.add_graph(sess.graph)
 
         # O P T I M I Z E
         correct_label_holder = tf.placeholder(tf.float32,
-                                              shape=(None, image_shape[0], image_shape[1], num_classes),
+                                              shape=(None, None, None, num_classes),
                                               name='correct_label_holder')
-        # correct_label_holder = tf.reshape(correct_label_holder, (-1, num_classes))
         logits, train_op, cross_entropy_loss = optimize(nn_last_layer,
                                                         correct_label_holder,
                                                         LRN_RATE,
@@ -214,7 +224,7 @@ def run():
                  correct_label=correct_label_holder,
                  keep_prob=keep_prob,
                  learning_rate=LRN_RATE)
-        #
+
         # # TODO: Save inference data using helper.save_inference_samples
         # helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
 

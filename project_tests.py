@@ -2,6 +2,7 @@ import sys
 import os
 from copy import deepcopy
 from glob import glob
+from termcolor import cprint
 from unittest import mock
 
 import numpy as np
@@ -15,7 +16,7 @@ def test_safe(func):
     def func_wrapper(*args):
         with tf.Graph().as_default():
             result = func(*args)
-        print('Tests Passed')
+        cprint('Tests Passed {}'.format(func.__name__), 'yellow')
         return result
 
     return func_wrapper
@@ -24,6 +25,7 @@ def test_safe(func):
 def _prevent_print(function, params):
     sys.stdout = open(os.devnull, "w")
     function(**params)
+    # restore stdout
     sys.stdout = sys.__stdout__
 
 
