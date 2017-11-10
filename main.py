@@ -1,5 +1,5 @@
 import os.path
-import os; os.system('cls')
+import os; os.system('cls'); os.system('clear')
 import sys
 import tensorflow as tf
 import helper
@@ -7,6 +7,7 @@ import warnings
 from distutils.version import LooseVersion
 import project_tests as tests
 from termcolor import cprint
+from tqdm import tqdm
 
 
 # Check TensorFlow Version
@@ -129,7 +130,7 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     train_op = optimizer.minimize(cross_entropy_loss)
 
     return logits, train_op, cross_entropy_loss
-# tests.test_optimize(optimize)
+tests.test_optimize(optimize)
 
 
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
@@ -152,17 +153,21 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     y = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 2), name='label_holder')
     keep_prob_value = tf.constant(0.5, dtype=tf.float32)
 
+
+    sess.run(tf.global_variables_initializer())
+    sess.run(tf.local_variables_initializer())
     for i in range(epochs):
-        for images, labels in get_batches_fn(batch_size):
-            cprint(labels.shape, 'red')
-            print(sess.run(tf.shape(keep_prob)))
+        for images, labels in tqdm(get_batches_fn(batch_size)):
+            # cprint(labels.shape, 'red')
+            # print(sess.run(tf.shape(keep_prob)))
+
             loss = sess.run(train_op, feed_dict={input_image: images,
                                                  correct_label: labels,
-                                                 keep_prob: keep_prob_value})
+                                                 keep_prob: 0.5})
         #     break
         # break
 
-# tests.test_train_nn(train_nn)
+tests.test_train_nn(train_nn)
 
 
 def run():
@@ -170,9 +175,9 @@ def run():
     image_shape = (160, 576)
     data_dir = './data'
     runs_dir = './runs'
-    tests.test_for_kitti_dataset(data_dir)
+    # tests.test_for_kitti_dataset(data_dir)
     EPOCHS = 1
-    BATCH_SIZE = 1
+    BATCH_SIZE = 64
     LRN_RATE = 1e-3
 
     # Download pretrained vgg model
@@ -182,7 +187,7 @@ def run():
     # You'll need a GPU with at least 10 teraFLOPS to train on.
     #  https://www.cityscapes-dataset.com/
 
-    with tf.Session(graph=tf.Graph()) as sess:
+    with tf.Session() as sess:
         writer = tf.summary.FileWriter('tensorboard')
 
 
@@ -200,7 +205,7 @@ def run():
         image_input, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
         #
         nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
-        writer.add_graph(sess.graph)
+        # writer.add_graph(sess.graph)
 
         # O P T I M I Z E
         correct_label_holder = tf.placeholder(tf.float32,
