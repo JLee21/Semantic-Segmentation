@@ -173,7 +173,7 @@ def run():
     runs_dir = './runs'
     # tests.test_for_kitti_dataset(data_dir)
     EPOCHS = 1
-    BATCH_SIZE = 32
+    BATCH_SIZE = 64
     LRN_RATE = 1e-3
 
     # Download pretrained vgg model
