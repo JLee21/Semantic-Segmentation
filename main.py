@@ -149,24 +149,18 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param learning_rate: TF Placeholder for learning rate
     """
     image_shape = (160, 576)
-    x = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 3), name='image_holder')
-    y = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 2), name='label_holder')
     keep_prob_value = tf.constant(0.5, dtype=tf.float32)
-
 
     sess.run(tf.global_variables_initializer())
     sess.run(tf.local_variables_initializer())
     for i in range(epochs):
         for images, labels in tqdm(get_batches_fn(batch_size)):
             # cprint(labels.shape, 'red')
-            # print(sess.run(tf.shape(keep_prob)))
+            print(sess.run(tf.shape(keep_prob)))
 
             loss = sess.run(train_op, feed_dict={input_image: images,
                                                  correct_label: labels,
                                                  keep_prob: 0.5})
-        #     break
-        # break
-
 tests.test_train_nn(train_nn)
 
 
