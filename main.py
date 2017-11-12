@@ -161,7 +161,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
                                                  keep_prob: 0.5})
             cprint('BATCH {0:2d} time --> {1:5d}s'.format(b, int(time()-start_batch)), 'yellow')
             b += 1
-        cprint('EPOCH {0:2d} time --> {1:5d}s'.format(epoch, int(time()-start)), 'blue', 'on_white')
+        cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
 
 if test_flag: tests.test_train_nn(train_nn)
 
