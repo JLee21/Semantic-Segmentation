@@ -9,6 +9,7 @@ import project_tests as tests
 from termcolor import cprint
 from tqdm import tqdm
 
+test_flag = False
 
 # Check TensorFlow Version
 assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), \
@@ -20,7 +21,7 @@ print('TensorFlow Version: {}'.format(tf.__version__))
 if not tf.test.gpu_device_name():
     warnings.warn('No GPU found. Please use a GPU to train your neural network.')
 else:
-    cprint('Default GPU Device: {}'.format(tf.test.gpu_device_name()), 'blue')
+    cprint('Default GPU Device: {}'.format(tf.test.gpu_device_name()), 'yellow')
 
 
 def load_vgg(sess, vgg_path):
@@ -51,7 +52,7 @@ def load_vgg(sess, vgg_path):
 
     cprint('VGG16 Loaded', 'blue', 'on_white')
     return image_input, keep_prob, layer3_out, layer4_out, layer7_out
-tests.test_load_vgg(load_vgg, tf)
+if test_flag: tests.test_load_vgg(load_vgg, tf)
 
 
 def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
@@ -103,7 +104,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     cprint('Layers Constructed', 'blue', 'on_white')
 
     return output
-tests.test_layers(layers)
+if test_flag: tests.test_layers(layers)
 
 
 def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
@@ -124,7 +125,7 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     train_op = optimizer.minimize(cross_entropy_loss)
 
     return logits, train_op, cross_entropy_loss
-tests.test_optimize(optimize)
+if test_flag: tests.test_optimize(optimize)
 
 
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
@@ -145,23 +146,20 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     image_shape = (160, 576)
     x = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 3), name='image_holder')
     y = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 2), name='label_holder')
-    keep_prob_value = tf.constant(0.5, dtype=tf.float32)
-
 
     sess.run(tf.global_variables_initializer())
     sess.run(tf.local_variables_initializer())
-    for i in range(epochs):
-        for images, labels in tqdm(get_batches_fn(batch_size)):
-            # cprint(labels.shape, 'red')
-            # print(sess.run(tf.shape(keep_prob)))
-
+    for i in tqdm(range(epochs)):
+        for images, labels in get_batches_fn(batch_size):
             loss = sess.run(train_op, feed_dict={input_image: images,
                                                  correct_label: labels,
                                                  keep_prob: 0.5})
+            print(loss)
+    print('DONE')
         #     break
         # break
 
-tests.test_train_nn(train_nn)
+if test_flag: tests.test_train_nn(train_nn)
 
 
 def run():
@@ -170,7 +168,7 @@ def run():
     data_dir = './data'
     runs_dir = './runs'
     # tests.test_for_kitti_dataset(data_dir)
-    EPOCHS = 1
+    EPOCHS = 6
     BATCH_SIZE = 64
     LRN_RATE = 1e-3
 
@@ -189,13 +187,13 @@ def run():
         vgg_path = os.path.join(data_dir, 'vgg')
         # Create function to get batches
         get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
-        images, labels = next(get_batches_fn(1))
+        images, labels = next(get_batches_fn(3))
         helper.print_data_info(images, labels)
 
         # # OPTIONAL: Augment Images for better results
         # #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
         #
-        # # TODO: Build NN using load_vgg, layers, and optimize function
+        # TODO: Build NN using load_vgg, layers, and optimize function
         image_input, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
         #
         nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
@@ -232,3 +230,4 @@ def run():
 
 if __name__ == '__main__':
     run()
+    pass
