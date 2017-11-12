@@ -58,7 +58,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     """
     Create the layers for a fully convolutional network.  Build skip-layers using the vgg layers.
     :param vgg_layer7_out: TF Tensor for VGG Layer 3 output
-    :param vgg_layer4_out: TF Tensor for VGG Layer 4 output
+    :param vgg_layer4_out: TF Tensor for VGGc    Layer 4 output
     :param vgg_layer3_out: TF Tensor for VGG Layer 7 output
     :param num_classes: Number of classes to classify
     :return: The Tensor for the last layer of output
@@ -69,12 +69,6 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     print('vgg_layer3_out shape: {}\t{}'.format(vgg_layer3_out.get_shape(), tf.shape(vgg_layer3_out)))
     print('vgg_layer4_out shape: {}\t{}'.format(vgg_layer4_out.get_shape(), tf.shape(vgg_layer4_out)))
     print('vgg_layer7_out shape: {}\t{}'.format(vgg_layer7_out.get_shape(), tf.shape(vgg_layer7_out)))
-
-    # do i have to do the convolutional part if i already have the layers from vgg?
-    #   do i have to know the shape. do i need to change the shape?
-    #   should i add biases? don't you typically add biases even in a trained model
-    #   the alexnet example just takes a numpy matrix and loads those guys into
-    # where is the input image specified in? where is the entry point?
 
     # R E S A M P L E
     # we already have the 'convolution' part from the downloaded VGG16 model
