@@ -2,20 +2,12 @@ import os.path
 import os; os.system('cls'); os.system('clear')
 import sys
 import tensorflow as tf
-<<<<<<< HEAD
-=======
-from tensorflow.contrib.layers import l2_regularizer
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
 import helper
 import warnings
 from distutils.version import LooseVersion
 import project_tests as tests
 from termcolor import cprint
 from tqdm import tqdm
-<<<<<<< HEAD
-=======
-from time import time
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
 
 test_flag = False
 
@@ -67,21 +59,13 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     """
     Create the layers for a fully convolutional network.  Build skip-layers using the vgg layers.
     :param vgg_layer7_out: TF Tensor for VGG Layer 3 output
-<<<<<<< HEAD
-    :param vgg_layer4_out: TF Tensor for VGGc    Layer 4 output
-=======
     :param vgg_layer4_out: TF Tensor for VGG Layer 4 output
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
     :param vgg_layer3_out: TF Tensor for VGG Layer 7 output
     :param num_classes: Number of classes to classify
     :return: The Tensor for the last layer of output
     """
     # H E L P E R S
-<<<<<<< HEAD
     # kernel_regularizer = tf.contrib.layers.l2_reqularizer(scale=1e-3)
-=======
-    kernel_regularizer = l2_regularizer(scale=1e-3)
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
     print('\n C O N V O L U T I O N')
     print('vgg_layer3_out shape: {}\t{}'.format(vgg_layer3_out.get_shape(), tf.shape(vgg_layer3_out)))
     print('vgg_layer4_out shape: {}\t{}'.format(vgg_layer4_out.get_shape(), tf.shape(vgg_layer4_out)))
@@ -91,38 +75,22 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # we already have the 'convolution' part from the downloaded VGG16 model
     # here, we are adding a 1x1 convolution instead of creating a fully-connected layer
     # resample vgg_layer7_out by 1x1 Convolution: To go from ?x5x18x4096 to ?x5x18x2
-<<<<<<< HEAD
     layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1), padding='same')
-=======
-    layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1), padding='same', kernel_regularizer=kernel_regularizer)
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
     print('layer7 shape: {}\t{}'.format(layer7.get_shape(), tf.shape(layer7)))
     tf.Print(layer7, [tf.shape(layer7)])
 
     # upsample vgg_layer7_out_resampled: by factor of 2 in order to go from ?x5x18x2 to ?x10x36x2
-<<<<<<< HEAD
     vgg_layer7 = tf.layers.conv2d_transpose(layer7, num_classes, 4, 2, padding='same', name='vgg_layer7')
     print('vgg_layer7 shape: {}\t{}'.format(vgg_layer7.get_shape(), tf.shape(vgg_layer7)))
 
     # resample vgg_layer4_out out by 1x1 Convolution: To go from ?x10x36x512 to ?x10x36x2
     vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1, 1), padding='same')
-=======
-    vgg_layer7 = tf.layers.conv2d_transpose(layer7, num_classes, 4, 2, padding='same', name='vgg_layer7', kernel_regularizer=kernel_regularizer)
-    print('vgg_layer7 shape: {}\t{}'.format(vgg_layer7.get_shape(), tf.shape(vgg_layer7)))
-
-    # resample vgg_layer4_out out by 1x1 Convolution: To go from ?x10x36x512 to ?x10x36x2
-    vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1, 1), padding='same', kernel_regularizer=kernel_regularizer)
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
 
     # combined_layer1 = tf.add(vgg_layer7, vgg_layer4)
     combined_layer1 = tf.add(vgg_layer7, vgg_layer4)
 
     # fcn_layer2: upsample combined_layer1 by factor of 2 in order to go from ?x10x36x2 to ?x20x72x2
-<<<<<<< HEAD
     fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes, 4, 2, padding='same', name='fcn_layer2')
-=======
-    fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes, 4, 2, padding='same', name='fcn_layer2', kernel_regularizer=kernel_regularizer)
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
 
     # resample vgg_layer3_out out by 1x1 Convolution: To go from ?x20x72x256 to ?x20x72x2
     vgg_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, 1, padding='same')
@@ -131,11 +99,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     combined_layer2 = tf.add(vgg_layer3, fcn_layer2)
 
     # upsample combined_layer2 by factor of 8 in order to go from ?x20x72x2 to ?x160x576x2
-<<<<<<< HEAD
     output = tf.layers.conv2d_transpose(combined_layer2, num_classes, 4, 8, padding='same', name='output_layer')
-=======
-    output = tf.layers.conv2d_transpose(combined_layer2, num_classes, 4, 8, padding='same', name='output_layer', kernel_regularizer=kernel_regularizer)
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
 
     cprint('Layers Constructed', 'blue', 'on_white')
 
@@ -185,7 +149,6 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
 
     sess.run(tf.global_variables_initializer())
     sess.run(tf.local_variables_initializer())
-<<<<<<< HEAD
     for i in tqdm(range(epochs)):
         for images, labels in get_batches_fn(batch_size):
             loss = sess.run(train_op, feed_dict={input_image: images,
@@ -195,19 +158,6 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     print('DONE')
         #     break
         # break
-=======
-    for epoch in range(epochs):
-        start = time()
-        b = 0
-        for images, labels in get_batches_fn(batch_size):
-            start_batch = time()
-            loss = sess.run(train_op, feed_dict={input_image: images,
-                                                 correct_label: labels,
-                                                 keep_prob: 0.5})
-            cprint('BATCH {0:2d} time --> {1:5d}s'.format(b, int(time()-start_batch)), 'yellow')
-            b += 1
-        cprint('EPOCH {0:2d} time --> {1:5d}s'.format(epoch, int(time()-start)), 'blue', 'on_white')
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
 
 if test_flag: tests.test_train_nn(train_nn)
 
@@ -218,13 +168,8 @@ def run():
     data_dir = './data'
     runs_dir = './runs'
     # tests.test_for_kitti_dataset(data_dir)
-<<<<<<< HEAD
     EPOCHS = 6
     BATCH_SIZE = 64
-=======
-    EPOCHS = 1
-    BATCH_SIZE = 16
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
     LRN_RATE = 1e-3
 
     # Download pretrained vgg model
@@ -249,11 +194,7 @@ def run():
         # #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
         #
         # TODO: Build NN using load_vgg, layers, and optimize function
-<<<<<<< HEAD
         image_input, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
-=======
-        input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
         #
         nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
         # writer.add_graph(sess.graph)
@@ -276,29 +217,17 @@ def run():
                  get_batches_fn=get_batches_fn,
                  train_op=train_op,
                  cross_entropy_loss=cross_entropy_loss,
-<<<<<<< HEAD
                  input_image=image_input,
-=======
-                 input_image=input_image,
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
                  correct_label=correct_label_holder,
                  keep_prob=keep_prob,
                  learning_rate=LRN_RATE)
 
         # # TODO: Save inference data using helper.save_inference_samples
-<<<<<<< HEAD
         # helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
-=======
-        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
-
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
 
         # OPTIONAL: Apply the trained model to a video
 
 
 if __name__ == '__main__':
     run()
-<<<<<<< HEAD
     pass
-=======
->>>>>>> c1fe306f5c1916e1addf5ad28050f2fad8c6f335
