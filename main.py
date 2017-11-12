@@ -2,12 +2,14 @@ import os.path
 import os; os.system('cls'); os.system('clear')
 import sys
 import tensorflow as tf
+from tensorflow.contrib.layers import l2_regularizer
 import helper
 import warnings
 from distutils.version import LooseVersion
 import project_tests as tests
 from termcolor import cprint
 from tqdm import tqdm
+from time import time
 
 test_flag = False
 
@@ -65,7 +67,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :return: The Tensor for the last layer of output
     """
     # H E L P E R S
-    # kernel_regularizer = tf.contrib.layers.l2_reqularizer(scale=1e-3)
+    kernel_regularizer = l2_regularizer(scale=1e-3)
     print('\n C O N V O L U T I O N')
     print('vgg_layer3_out shape: {}\t{}'.format(vgg_layer3_out.get_shape(), tf.shape(vgg_layer3_out)))
     print('vgg_layer4_out shape: {}\t{}'.format(vgg_layer4_out.get_shape(), tf.shape(vgg_layer4_out)))
@@ -75,22 +77,22 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # we already have the 'convolution' part from the downloaded VGG16 model
     # here, we are adding a 1x1 convolution instead of creating a fully-connected layer
     # resample vgg_layer7_out by 1x1 Convolution: To go from ?x5x18x4096 to ?x5x18x2
-    layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1), padding='same')
+    layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1), padding='same', kernel_regularizer=kernel_regularizer)
     print('layer7 shape: {}\t{}'.format(layer7.get_shape(), tf.shape(layer7)))
     tf.Print(layer7, [tf.shape(layer7)])
 
     # upsample vgg_layer7_out_resampled: by factor of 2 in order to go from ?x5x18x2 to ?x10x36x2
-    vgg_layer7 = tf.layers.conv2d_transpose(layer7, num_classes, 4, 2, padding='same', name='vgg_layer7')
+    vgg_layer7 = tf.layers.conv2d_transpose(layer7, num_classes, 4, 2, padding='same', name='vgg_layer7', kernel_regularizer=kernel_regularizer)
     print('vgg_layer7 shape: {}\t{}'.format(vgg_layer7.get_shape(), tf.shape(vgg_layer7)))
 
     # resample vgg_layer4_out out by 1x1 Convolution: To go from ?x10x36x512 to ?x10x36x2
-    vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1, 1), padding='same')
+    vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1, 1), padding='same', kernel_regularizer=kernel_regularizer)
 
     # combined_layer1 = tf.add(vgg_layer7, vgg_layer4)
     combined_layer1 = tf.add(vgg_layer7, vgg_layer4)
 
     # fcn_layer2: upsample combined_layer1 by factor of 2 in order to go from ?x10x36x2 to ?x20x72x2
-    fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes, 4, 2, padding='same', name='fcn_layer2')
+    fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes, 4, 2, padding='same', name='fcn_layer2', kernel_regularizer=kernel_regularizer)
 
     # resample vgg_layer3_out out by 1x1 Convolution: To go from ?x20x72x256 to ?x20x72x2
     vgg_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, 1, padding='same')
@@ -99,7 +101,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     combined_layer2 = tf.add(vgg_layer3, fcn_layer2)
 
     # upsample combined_layer2 by factor of 8 in order to go from ?x20x72x2 to ?x160x576x2
-    output = tf.layers.conv2d_transpose(combined_layer2, num_classes, 4, 8, padding='same', name='output_layer')
+    output = tf.layers.conv2d_transpose(combined_layer2, num_classes, 4, 8, padding='same', name='output_layer', kernel_regularizer=kernel_regularizer)
 
     cprint('Layers Constructed', 'blue', 'on_white')
 
@@ -149,15 +151,17 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
 
     sess.run(tf.global_variables_initializer())
     sess.run(tf.local_variables_initializer())
-    for i in tqdm(range(epochs)):
+    for epoch in range(epochs):
+        start = time()
+        b = 0
         for images, labels in get_batches_fn(batch_size):
+            start_batch = time()
             loss = sess.run(train_op, feed_dict={input_image: images,
                                                  correct_label: labels,
                                                  keep_prob: 0.5})
-            print(loss)
-    print('DONE')
-        #     break
-        # break
+            cprint('BATCH {0:2d} time --> {1:5d}s'.format(b, int(time()-start_batch)), 'yellow')
+            b += 1
+        cprint('EPOCH {0:2d} time --> {1:5d}s'.format(epoch, int(time()-start)), 'blue', 'on_white')
 
 if test_flag: tests.test_train_nn(train_nn)
 
@@ -168,8 +172,8 @@ def run():
     data_dir = './data'
     runs_dir = './runs'
     # tests.test_for_kitti_dataset(data_dir)
-    EPOCHS = 6
-    BATCH_SIZE = 64
+    EPOCHS = 1
+    BATCH_SIZE = 32
     LRN_RATE = 1e-3
 
     # Download pretrained vgg model
@@ -194,7 +198,7 @@ def run():
         # #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
         #
         # TODO: Build NN using load_vgg, layers, and optimize function
-        image_input, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
+        input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
         #
         nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
         # writer.add_graph(sess.graph)
@@ -217,17 +221,17 @@ def run():
                  get_batches_fn=get_batches_fn,
                  train_op=train_op,
                  cross_entropy_loss=cross_entropy_loss,
-                 input_image=image_input,
+                 input_image=input_image,
                  correct_label=correct_label_holder,
                  keep_prob=keep_prob,
                  learning_rate=LRN_RATE)
 
         # # TODO: Save inference data using helper.save_inference_samples
-        # helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
+        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
+
 
         # OPTIONAL: Apply the trained model to a video
 
 
 if __name__ == '__main__':
     run()
-    pass
