@@ -10,6 +10,8 @@ import project_tests as tests
 from termcolor import cprint
 from tqdm import tqdm
 from time import time
+from glob import glob
+import scipy.misc
 
 test_flag = False
 
@@ -130,8 +132,24 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
 if test_flag: tests.test_optimize(optimize)
 
 
-def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
-             correct_label, keep_prob, learning_rate):
+def mean_iou(ground_truth, prediction, num_classes):
+    """ compute the mean IOU """
+    # sanity shape check
+    # print('shape of labels ', ground_truth.shape)       # (1, 160, 576, 2)
+    # print('len of im_softmax ', len(prediction))
+    # print('shape of im_softmax ', prediction[0].shape)  # (92160, 2)
+    ground_truth = ground_truth.reshape(-1, num_classes)
+    # print('shape of labels ', ground_truth.shape)       # (92160, 2)
+
+    ground_truth = tf.convert_to_tensor(ground_truth)
+    prediction = tf.convert_to_tensor(prediction)
+
+    iou, iou_op = tf.metrics.mean_iou(ground_truth, prediction, num_classes, name='mean_iou')
+    return iou, iou_op
+
+def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
+             cross_entropy_loss, input_image, correct_label,
+             keep_prob, learning_rate, logits, path_test_images):
     """
     Train neural network and print out the loss during training.
     :param sess: TF Session
@@ -145,23 +163,41 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param keep_prob: TF Placeholder for dropout keep probability
     :param learning_rate: TF Placeholder for learning rate
     """
-    image_shape = (160, 576)
-    x = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 3), name='image_holder')
-    y = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 2), name='label_holder')
+
+    saver = tf.train.Saver()
 
     sess.run(tf.global_variables_initializer())
-    sess.run(tf.local_variables_initializer())
+
     for epoch in range(epochs):
         start = time()
         b = 0
         for images, labels in get_batches_fn(batch_size):
             start_batch = time()
-            loss = sess.run(train_op, feed_dict={input_image: images,
+            sess.run(train_op, feed_dict={input_image: images,
                                                  correct_label: labels,
                                                  keep_prob: 0.5})
             cprint('BATCH {0:2d} time --> {1:5d}s'.format(b, int(time()-start_batch)), 'yellow')
             b += 1
+
+            gen = get_batches_fn(32)
+            images, labels = next(gen)
+            # im_softmax is list of numpy arrays. each array is a percentage corr. to eash pixel
+            im_softmax = sess.run(
+                [tf.nn.softmax(logits)],
+                {keep_prob: 1.0, input_image: images})[0]
+            # return Tensors for metric result and to generate results
+            iou, iou_op = mean_iou(labels, im_softmax, num_classes=2)
+            sess.run(tf.local_variables_initializer())
+            sess.run(iou_op)
+            cprint('MEAN IOU: {}'.format(sess.run(iou)), 'green', 'on_grey')
+
         cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
+        print('saving sess...')
+        saver.save(sess, 'model/cpu-trained-mac-epoch-{}'.format(epoch))
+
+
+
+
 
 if test_flag: tests.test_train_nn(train_nn)
 
@@ -172,7 +208,7 @@ def run():
     data_dir = './data'
     runs_dir = './runs'
     # tests.test_for_kitti_dataset(data_dir)
-    EPOCHS = 1
+    EPOCHS = 4
     BATCH_SIZE = 64
     LRN_RATE = 1e-3
 
@@ -190,7 +226,9 @@ def run():
         # Path to vgg model
         vgg_path = os.path.join(data_dir, 'vgg')
         # Create function to get batches
-        get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
+        path_train_images = os.path.join(data_dir, 'data_road/training')
+        path_test_images = os.path.join(data_dir, 'data_road/testing/image_2/*.png')
+        get_batches_fn = helper.gen_batch_function(path_train_images, image_shape)
         images, labels = next(get_batches_fn(3))
         helper.print_data_info(images, labels)
 
@@ -201,7 +239,7 @@ def run():
         input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
         #
         nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
-        # writer.add_graph(sess.graph)
+        writer.add_graph(sess.graph)
 
         # O P T I M I Z E
         correct_label_holder = tf.placeholder(tf.float32,
@@ -213,7 +251,7 @@ def run():
                                                         num_classes)
 
         # T R A I N
-        # # TODO: Train NN using the train_nn function
+        os.system('clear')
         cprint('Training...', 'blue', 'on_white')
         train_nn(sess=sess,
                  epochs=EPOCHS,
@@ -224,10 +262,12 @@ def run():
                  input_image=input_image,
                  correct_label=correct_label_holder,
                  keep_prob=keep_prob,
-                 learning_rate=LRN_RATE)
+                 learning_rate=LRN_RATE,
+                 logits=logits,
+                 path_test_images=path_test_images)
 
         # # TODO: Save inference data using helper.save_inference_samples
-        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
+        helper.save_inference_samples(runs_dir, path_test_images, sess, image_shape, logits, keep_prob, input_image)
 
 
         # OPTIONAL: Apply the trained model to a video

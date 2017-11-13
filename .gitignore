@@ -1,6 +1,8 @@
 # my stuff
 data/
 tensorboard/
+.DS_Store
+model/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
