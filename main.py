@@ -10,6 +10,10 @@ import project_tests as tests
 from termcolor import cprint
 from tqdm import tqdm
 from time import time
+from glob import glob
+import scipy.misc
+import config
+from helper import save_inference_samples
 
 test_flag = False
 
@@ -67,7 +71,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :return: The Tensor for the last layer of output
     """
     # H E L P E R S
-    kernel_regularizer = l2_regularizer(scale=1e-3)
+    kernel_regularizer = l2_regularizer(scale=1e-2)
     print('\n C O N V O L U T I O N')
     print('vgg_layer3_out shape: {}\t{}'.format(vgg_layer3_out.get_shape(), tf.shape(vgg_layer3_out)))
     print('vgg_layer4_out shape: {}\t{}'.format(vgg_layer4_out.get_shape(), tf.shape(vgg_layer4_out)))
@@ -78,12 +82,9 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # here, we are adding a 1x1 convolution instead of creating a fully-connected layer
     # resample vgg_layer7_out by 1x1 Convolution: To go from ?x5x18x4096 to ?x5x18x2
     layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1), padding='same', kernel_regularizer=kernel_regularizer)
-    print('layer7 shape: {}\t{}'.format(layer7.get_shape(), tf.shape(layer7)))
-    tf.Print(layer7, [tf.shape(layer7)])
 
     # upsample vgg_layer7_out_resampled: by factor of 2 in order to go from ?x5x18x2 to ?x10x36x2
     vgg_layer7 = tf.layers.conv2d_transpose(layer7, num_classes, 4, 2, padding='same', name='vgg_layer7', kernel_regularizer=kernel_regularizer)
-    print('vgg_layer7 shape: {}\t{}'.format(vgg_layer7.get_shape(), tf.shape(vgg_layer7)))
 
     # resample vgg_layer4_out out by 1x1 Convolution: To go from ?x10x36x512 to ?x10x36x2
     vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1, 1), padding='same', kernel_regularizer=kernel_regularizer)
@@ -95,7 +96,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes, 4, 2, padding='same', name='fcn_layer2', kernel_regularizer=kernel_regularizer)
 
     # resample vgg_layer3_out out by 1x1 Convolution: To go from ?x20x72x256 to ?x20x72x2
-    vgg_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, 1, padding='same')
+    vgg_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, kernel_size=1, strides=(1,1), padding='same')
 
     # combined_layer2 = tf.add(vgg_layer3, fcn_layer2)
     combined_layer2 = tf.add(vgg_layer3, fcn_layer2)
@@ -130,8 +131,24 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
 if test_flag: tests.test_optimize(optimize)
 
 
-def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image,
-             correct_label, keep_prob, learning_rate):
+def mean_iou(ground_truth, prediction, num_classes):
+    """ compute the mean IOU """
+    # sanity shape check
+    # print('shape of labels ', ground_truth.shape)       # (1, 160, 576, 2)
+    # print('len of im_softmax ', len(prediction))
+    # print('shape of im_softmax ', prediction[0].shape)  # (92160, 2)
+    ground_truth = ground_truth.reshape(-1, num_classes)
+    # print('shape of labels ', ground_truth.shape)       # (92160, 2)
+
+    ground_truth = tf.convert_to_tensor(ground_truth)
+    prediction = tf.convert_to_tensor(prediction)
+
+    iou, iou_op = tf.metrics.mean_iou(ground_truth, prediction, num_classes, name='mean_iou')
+    return iou, iou_op
+
+def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
+             cross_entropy_loss, input_image, correct_label,
+             keep_prob, learning_rate, logits, path_test_images):
     """
     Train neural network and print out the loss during training.
     :param sess: TF Session
@@ -145,39 +162,60 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param keep_prob: TF Placeholder for dropout keep probability
     :param learning_rate: TF Placeholder for learning rate
     """
-    image_shape = (160, 576)
-    x = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 3), name='image_holder')
-    y = tf.placeholder(tf.float32, (None, image_shape[0], image_shape[1], 2), name='label_holder')
+
+    saver = tf.train.Saver(max_to_keep=2)
 
     sess.run(tf.global_variables_initializer())
-    sess.run(tf.local_variables_initializer())
+
     for epoch in range(epochs):
         start = time()
         b = 0
-        for images, labels in get_batches_fn(batch_size):
+        for images, labels in tqdm(get_batches_fn(batch_size)):
             start_batch = time()
-            loss = sess.run(train_op, feed_dict={input_image: images,
+            sess.run(train_op, feed_dict={input_image: images,
                                                  correct_label: labels,
                                                  keep_prob: 0.5})
-            cprint('BATCH {0:2d} time --> {1:5d}s'.format(b, int(time()-start_batch)), 'yellow')
             b += 1
+
+        # images, labels = next(get_batches_fn(2))
+        # '''
+        # im_softmax is list of numpy arrays.
+        # each array is a percentage corr. to eash pixel
+        # '''
+        # im_softmax = sess.run(
+        #     [tf.nn.softmax(logits)],
+        #     {keep_prob: 1.0, input_image: images})[0]
+        # # return Tensors for metric result and to generate results
+        # iou, iou_op = mean_iou(labels, im_softmax, num_classes=2)
+        # sess.run(tf.local_variables_initializer())
+        # sess.run(iou_op)
+        # cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
+
         cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
+        print('saving sess...')
+        dst = os.path.join('D:', 'bil/model/cpu-trained-mac-epoch-{}'.format(epoch))
+        saver.save(sess, dst)
+
+        # create movie for finished epoch
+        if epoch % 5 == 0:
+            save_inference_samples(
+                runs_dir=config.runs_dir,
+                path_test_images=config.path_test_images,
+                sess=sess,
+                image_shape=config.image_shape,
+                logits=logits,
+                keep_prob=keep_prob,
+                input_image=input_image,
+                epoch=epoch)
+
 
 if test_flag: tests.test_train_nn(train_nn)
 
 
 def run():
-    num_classes = 2
-    image_shape = (160, 576)
-    data_dir = './data'
-    runs_dir = './runs'
-    # tests.test_for_kitti_dataset(data_dir)
-    EPOCHS = 1
-    BATCH_SIZE = 4
-    LRN_RATE = 1e-3
 
     # Download pretrained vgg model
-    helper.maybe_download_pretrained_vgg(data_dir)
+    helper.maybe_download_pretrained_vgg(config.data_dir)
 
     # OPTIONAL: Train and Inference on the cityscapes dataset instead of the Kitti dataset.
     # You'll need a GPU with at least 10 teraFLOPS to train on.
@@ -186,49 +224,51 @@ def run():
     with tf.Session() as sess:
         writer = tf.summary.FileWriter('tensorboard')
 
-
         # Path to vgg model
-        vgg_path = os.path.join(data_dir, 'vgg')
+        vgg_path = os.path.join(config.data_dir, 'vgg')
         # Create function to get batches
-        get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
+
+        get_batches_fn = helper.gen_batch_function(config.path_train_images,
+            config.image_shape)
         images, labels = next(get_batches_fn(3))
         helper.print_data_info(images, labels)
 
         # # OPTIONAL: Augment Images for better results
         # #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
         #
-        # TODO: Build NN using load_vgg, layers, and optimize function
+        # Build NN using load_vgg, layers, and optimize function
         input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
         #
-        nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
+        nn_last_layer = layers(layer3_out, layer4_out, layer7_out, config.num_classes)
         # writer.add_graph(sess.graph)
 
         # O P T I M I Z E
         correct_label_holder = tf.placeholder(tf.float32,
-                                              shape=(None, None, None, num_classes),
+                                              shape=(None, None, None, config.num_classes),
                                               name='correct_label_holder')
         logits, train_op, cross_entropy_loss = optimize(nn_last_layer,
                                                         correct_label_holder,
-                                                        LRN_RATE,
-                                                        num_classes)
+                                                        config.LRN_RATE,
+                                                        config.num_classes)
 
         # T R A I N
-        # # TODO: Train NN using the train_nn function
+        start = time()
+        os.system('clear')
         cprint('Training...', 'blue', 'on_white')
         train_nn(sess=sess,
-                 epochs=EPOCHS,
-                 batch_size=BATCH_SIZE,
+                 epochs=config.EPOCHS,
+                 batch_size=config.BATCH_SIZE,
                  get_batches_fn=get_batches_fn,
                  train_op=train_op,
                  cross_entropy_loss=cross_entropy_loss,
                  input_image=input_image,
                  correct_label=correct_label_holder,
                  keep_prob=keep_prob,
-                 learning_rate=LRN_RATE)
+                 learning_rate=config.LRN_RATE,
+                 logits=logits,
+                 path_test_images=config.path_test_images)
 
-        # # TODO: Save inference data using helper.save_inference_samples
-        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
-
+        cprint('TOTAL time --> {0:3.2f}m'.format((time()-start)/60), 'yellow')
 
         # OPTIONAL: Apply the trained model to a video
 
