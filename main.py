@@ -162,12 +162,14 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
     :param keep_prob: TF Placeholder for dropout keep probability
     :param learning_rate: TF Placeholder for learning rate
     """
-
+    cprint('asdf', 'blue')
     saver = tf.train.Saver(max_to_keep=2)
 
     sess.run(tf.global_variables_initializer())
 
     for epoch in range(epochs):
+        cprint('asdf', 'blue')
+
         start = time()
         b = 0
         for images, labels in tqdm(get_batches_fn(batch_size)):
