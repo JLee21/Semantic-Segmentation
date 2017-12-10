@@ -80,12 +80,9 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # here, we are adding a 1x1 convolution instead of creating a fully-connected layer
     # resample vgg_layer7_out by 1x1 Convolution: To go from ?x5x18x4096 to ?x5x18x2
     layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1), padding='same', kernel_regularizer=kernel_regularizer)
-    print('layer7 shape: {}\t{}'.format(layer7.get_shape(), tf.shape(layer7)))
-    tf.Print(layer7, [tf.shape(layer7)])
 
     # upsample vgg_layer7_out_resampled: by factor of 2 in order to go from ?x5x18x2 to ?x10x36x2
     vgg_layer7 = tf.layers.conv2d_transpose(layer7, num_classes, 4, 2, padding='same', name='vgg_layer7', kernel_regularizer=kernel_regularizer)
-    print('vgg_layer7 shape: {}\t{}'.format(vgg_layer7.get_shape(), tf.shape(vgg_layer7)))
 
     # resample vgg_layer4_out out by 1x1 Convolution: To go from ?x10x36x512 to ?x10x36x2
     vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1, 1), padding='same', kernel_regularizer=kernel_regularizer)
@@ -208,7 +205,7 @@ def run():
     data_dir = './data'
     runs_dir = './runs'
     # tests.test_for_kitti_dataset(data_dir)
-    EPOCHS = 4
+    EPOCHS = 1
     BATCH_SIZE = 64
     LRN_RATE = 1e-3
 
@@ -267,7 +264,7 @@ def run():
                  path_test_images=path_test_images)
 
         # # TODO: Save inference data using helper.save_inference_samples
-        helper.save_inference_samples(runs_dir, path_test_images, sess, image_shape, logits, keep_prob, input_image)
+        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
 
 
         # OPTIONAL: Apply the trained model to a video
