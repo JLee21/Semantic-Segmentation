@@ -27,7 +27,7 @@ print('TensorFlow Version: {}'.format(tf.__version__))
 if not tf.test.gpu_device_name():
     warnings.warn('No GPU found. Please use a GPU to train your neural network.')
 else:
-    cprint('Default GPU Device: {}'.format(tf.test.gpu_device_name()), 'yellow')
+    print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
 
 def load_vgg(sess, vgg_path):
@@ -179,19 +179,19 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
                                                  keep_prob: 0.5})
             b += 1
 
-        # images, labels = next(get_batches_fn(2))
-        # '''
-        # im_softmax is list of numpy arrays.
-        # each array is a percentage corr. to eash pixel
-        # '''
-        # im_softmax = sess.run(
-        #     [tf.nn.softmax(logits)],
-        #     {keep_prob: 1.0, input_image: images})[0]
-        # # return Tensors for metric result and to generate results
-        # iou, iou_op = mean_iou(labels, im_softmax, num_classes=2)
-        # sess.run(tf.local_variables_initializer())
-        # sess.run(iou_op)
-        # cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
+        images, labels = next(get_batches_fn(2))
+        '''
+        im_softmax is list of numpy arrays.
+        each array is a percentage corr. to eash pixel
+        '''
+        im_softmax = sess.run(
+            [tf.nn.softmax(logits)],
+            {keep_prob: 1.0, input_image: images})[0]
+        # return Tensors for metric result and to generate results
+        iou, iou_op = mean_iou(labels, im_softmax, num_classes=2)
+        sess.run(tf.local_variables_initializer())
+        sess.run(iou_op)
+        cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
 
         cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
         print('saving sess...')

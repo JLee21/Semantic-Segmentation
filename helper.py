@@ -11,7 +11,9 @@ from glob import glob
 from urllib.request import urlretrieve
 from tqdm import tqdm
 from termcolor import cprint
+# C U S T O M
 from movie import create_movie
+import config
 
 
 class DLProgress(tqdm):
@@ -107,6 +109,32 @@ def gen_batch_function(data_folder, image_shape):
             yield np.array(images), np.array(gt_images)
     return get_batches_fn
 
+def gen_test_output(sess, logits, keep_prob, image_pl, input_image, image_shape):
+    """
+    Return the output of the NN in the format of that looks like the ground ground_truth
+    I.e., the NN outputs logits -> softmax scores -> segmentation (softmax > threshold)
+    :param sess: TF session
+    :param logits: TF Tensor for the logits
+    :param keep_prob: TF Placeholder for the dropout keep robability
+    :param image_pl: TF Placeholder for the image placeholder
+    :param data_folder: Path to the folder that contains the datasets
+    :param image_shape: Tuple - Shape of image
+    :return: Output for for each test image
+    """
+    image = scipy.misc.imresize(scipy.misc.imread(image_file), image_shape)
+
+    im_softmax = sess.run(
+        [tf.nn.softmax(logits)],
+        {keep_prob: 1.0, image_pl: [image]})
+    im_softmax = im_softmax[0][:, 1].reshape(image_shape[0], image_shape[1])
+    segmentation = (im_softmax > 0.5).reshape(image_shape[0], image_shape[1], 1)
+    mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
+    mask = scipy.misc.toimage(mask, mode="RGBA")
+    street_im = scipy.misc.toimage(image)
+    street_im.paste(mask, box=None, mask=mask)
+
+    yield os.path.basename(image_file), np.array(street_im)
+
 
 def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_shape):
     """
@@ -137,6 +165,11 @@ def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_s
 
 def save_inference_samples(runs_dir, path_test_images, sess, image_shape,
     logits, keep_prob, input_image, epoch='na'):
+    """
+    1) Folder housekeeping
+    2) Run NN on test images and save to Folder
+    3) Create a movie/time-lapse of images saved in said Folder
+    """
     # Make folder for current run
     output_dir = os.path.join(runs_dir, '-'.join(['EPOCH', str(epoch), str(time.time())]))
     if os.path.exists(output_dir):
