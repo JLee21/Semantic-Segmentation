@@ -27,7 +27,7 @@ print('TensorFlow Version: {}'.format(tf.__version__))
 if not tf.test.gpu_device_name():
     warnings.warn('No GPU found. Please use a GPU to train your neural network.')
 else:
-    cprint('Default GPU Device: {}'.format(tf.test.gpu_device_name()), 'yellow')
+    print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
 
 def load_vgg(sess, vgg_path):
