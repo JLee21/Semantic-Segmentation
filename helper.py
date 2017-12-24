@@ -109,32 +109,37 @@ def gen_batch_function(data_folder, image_shape):
             yield np.array(images), np.array(gt_images)
     return get_batches_fn
 
-def gen_test_output(sess, logits, keep_prob, image_pl, input_image, image_shape):
+def define_mean_iou(ground_truth, prediction, num_classes):
+    """ compute the mean IOU """
+    # sanity shape check
+    # print('shape of labels ', ground_truth.shape)       # (1, 160, 576, 2)
+    # print('len of im_softmax ', len(prediction))
+    # print('shape of im_softmax ', prediction[0].shape)  # (92160, 2)
+    ground_truth = ground_truth.reshape(-1, num_classes)
+    # print('shape of labels ', ground_truth.shape)       # (92160, 2)
+
+    ground_truth = tf.convert_to_tensor(ground_truth)
+    prediction = tf.convert_to_tensor(prediction)
+
+    iou, iou_op = tf.metrics.mean_iou(ground_truth, prediction, num_classes,
+        name='mean_iou')
+    return iou, iou_op
+
+def compute_mean_iou(sess):
     """
-    Return the output of the NN in the format of that looks like the ground ground_truth
-    I.e., the NN outputs logits -> softmax scores -> segmentation (softmax > threshold)
-    :param sess: TF session
-    :param logits: TF Tensor for the logits
-    :param keep_prob: TF Placeholder for the dropout keep robability
-    :param image_pl: TF Placeholder for the image placeholder
-    :param data_folder: Path to the folder that contains the datasets
-    :param image_shape: Tuple - Shape of image
-    :return: Output for for each test image
+    img.shape -> (?, 2)
+    gt.shape  -> (?, 2)
     """
-    image = scipy.misc.imresize(scipy.misc.imread(image_file), image_shape)
+    get_batches_fn = helper.gen_batch_function(config.path_train_images, config.image_shape)
 
-    im_softmax = sess.run(
-        [tf.nn.softmax(logits)],
-        {keep_prob: 1.0, image_pl: [image]})
-    im_softmax = im_softmax[0][:, 1].reshape(image_shape[0], image_shape[1])
-    segmentation = (im_softmax > 0.5).reshape(image_shape[0], image_shape[1], 1)
-    mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
-    mask = scipy.misc.toimage(mask, mode="RGBA")
-    street_im = scipy.misc.toimage(image)
-    street_im.paste(mask, box=None, mask=mask)
+    images, labels = next(get_batches_fn(300))
 
-    yield os.path.basename(image_file), np.array(street_im)
-
+    for img, gt in zip(images, labels):
+        img = img.reshape(-1, config.num_classes)
+        gt = gt.reshape(-1, config.num_classes)
+        iou, iou_op = define_mean_iou(gt, img, num_classes=config.num_classes)
+        sess.run(tf.local_variables_initializer())
+        cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
 
 def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_shape):
     """
@@ -147,6 +152,8 @@ def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_s
     :param image_shape: Tuple - Shape of image
     :return: Output for for each test image
     """
+
+    # return Tensors for metric result and to generate results
     for image_file in glob(path_test_images):
         image = scipy.misc.imresize(scipy.misc.imread(image_file), image_shape)
 

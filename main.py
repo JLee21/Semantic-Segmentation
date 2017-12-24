@@ -14,6 +14,9 @@ from glob import glob
 import scipy.misc
 import config
 from helper import save_inference_samples
+import helper
+
+import matplotlib.pyplot as plt
 
 test_flag = False
 
@@ -58,6 +61,7 @@ def load_vgg(sess, vgg_path):
 
     cprint('VGG16 Loaded', 'blue', 'on_white')
     return image_input, keep_prob, layer3_out, layer4_out, layer7_out
+
 if test_flag: tests.test_load_vgg(load_vgg, tf)
 
 
@@ -81,28 +85,40 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # we already have the 'convolution' part from the downloaded VGG16 model
     # here, we are adding a 1x1 convolution instead of creating a fully-connected layer
     # resample vgg_layer7_out by 1x1 Convolution: To go from ?x5x18x4096 to ?x5x18x2
-    layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1), padding='same', kernel_regularizer=kernel_regularizer)
+    layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1),
+        padding='same', kernel_regularizer=kernel_regularizer,
+        name='layer7')
 
     # upsample vgg_layer7_out_resampled: by factor of 2 in order to go from ?x5x18x2 to ?x10x36x2
-    vgg_layer7 = tf.layers.conv2d_transpose(layer7, num_classes, 4, 2, padding='same', name='vgg_layer7', kernel_regularizer=kernel_regularizer)
+    vgg_layer7 = tf.layers.conv2d_transpose(layer7, num_classes, 4, 2, padding='same',
+        kernel_regularizer=kernel_regularizer,
+        name='vgg_layer7')
 
     # resample vgg_layer4_out out by 1x1 Convolution: To go from ?x10x36x512 to ?x10x36x2
-    vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1, 1), padding='same', kernel_regularizer=kernel_regularizer)
+    vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1, 1),
+        padding='same', kernel_regularizer=kernel_regularizer,
+        name='vgg_layer4')
 
     # combined_layer1 = tf.add(vgg_layer7, vgg_layer4)
     combined_layer1 = tf.add(vgg_layer7, vgg_layer4)
 
     # fcn_layer2: upsample combined_layer1 by factor of 2 in order to go from ?x10x36x2 to ?x20x72x2
-    fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes, 4, 2, padding='same', name='fcn_layer2', kernel_regularizer=kernel_regularizer)
+    fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes, 4, 2, padding='same',
+        kernel_regularizer=kernel_regularizer,
+        name='fcn_layer2')
 
     # resample vgg_layer3_out out by 1x1 Convolution: To go from ?x20x72x256 to ?x20x72x2
-    vgg_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, kernel_size=1, strides=(1,1), padding='same')
+    vgg_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, kernel_size=1, strides=(1,1),
+        padding='same',
+        name='vgg_layer3')
 
     # combined_layer2 = tf.add(vgg_layer3, fcn_layer2)
     combined_layer2 = tf.add(vgg_layer3, fcn_layer2)
 
     # upsample combined_layer2 by factor of 8 in order to go from ?x20x72x2 to ?x160x576x2
-    output = tf.layers.conv2d_transpose(combined_layer2, num_classes, 4, 8, padding='same', name='output_layer', kernel_regularizer=kernel_regularizer)
+    output = tf.layers.conv2d_transpose(combined_layer2, num_classes, 4, 8,
+        padding='same', kernel_regularizer=kernel_regularizer,
+        name='output_layer')
 
     cprint('Layers Constructed', 'blue', 'on_white')
 
@@ -121,30 +137,17 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     """
     logits = tf.reshape(nn_last_layer, (-1, num_classes))
 
-    softmax = tf.nn.softmax_cross_entropy_with_logits(labels=correct_label, logits=logits)
+    softmax = tf.nn.softmax_cross_entropy_with_logits(labels=correct_label, logits=logits,
+        name='logits')
     cross_entropy_loss = tf.reduce_mean(softmax)
 
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-    train_op = optimizer.minimize(cross_entropy_loss)
+    train_op = optimizer.minimize(cross_entropy_loss,
+        name='train_op')
 
     return logits, train_op, cross_entropy_loss
 if test_flag: tests.test_optimize(optimize)
 
-
-def mean_iou(ground_truth, prediction, num_classes):
-    """ compute the mean IOU """
-    # sanity shape check
-    # print('shape of labels ', ground_truth.shape)       # (1, 160, 576, 2)
-    # print('len of im_softmax ', len(prediction))
-    # print('shape of im_softmax ', prediction[0].shape)  # (92160, 2)
-    ground_truth = ground_truth.reshape(-1, num_classes)
-    # print('shape of labels ', ground_truth.shape)       # (92160, 2)
-
-    ground_truth = tf.convert_to_tensor(ground_truth)
-    prediction = tf.convert_to_tensor(prediction)
-
-    iou, iou_op = tf.metrics.mean_iou(ground_truth, prediction, num_classes, name='mean_iou')
-    return iou, iou_op
 
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
              cross_entropy_loss, input_image, correct_label,
@@ -162,13 +165,12 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
     :param keep_prob: TF Placeholder for dropout keep probability
     :param learning_rate: TF Placeholder for learning rate
     """
-    cprint('asdf', 'blue')
+
     saver = tf.train.Saver(max_to_keep=2)
 
     sess.run(tf.global_variables_initializer())
 
     for epoch in range(epochs):
-        cprint('asdf', 'blue')
 
         start = time()
         b = 0
@@ -179,24 +181,62 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
                                                  keep_prob: 0.5})
             b += 1
 
-        images, labels = next(get_batches_fn(2))
+            # break out of training when on Mac
+
+        images, labels = next(get_batches_fn(1))
+
         '''
+        M E A N  I O U
+
         im_softmax is list of numpy arrays.
-        each array is a percentage corr. to eash pixel
+        each array is shape (?, 2)
+        each array is a softmax score to eash pixel
         '''
         im_softmax = sess.run(
             [tf.nn.softmax(logits)],
-            {keep_prob: 1.0, input_image: images})[0]
+            {keep_prob: 1.0, input_image: images})
+        im_softmax = im_softmax[0]
+        labels_orig = labels[0]
+        labels = labels[0].reshape(-1, 2)
+        # im_softmax = im_softmax[:, 1].reshape(config.image_shape.x, config.image_shape.y)
+        # im_softmax = im_softmax[:, 1].reshape(config.image_shape.x, config.image_shape.y)
+        # segmentation = (im_softmax > 0.5).reshape(config.image_shape.x, config.image_shape.y, 1)
+        segmentation = (im_softmax > 0.5)
         # return Tensors for metric result and to generate results
-        iou, iou_op = mean_iou(labels, im_softmax, num_classes=2)
+        # below is wrong b/c we are not to use the softmax scores
+        iou, iou_op = helper.define_mean_iou(labels, segmentation, num_classes=2)
         sess.run(tf.local_variables_initializer())
         sess.run(iou_op)
         cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
 
+        # labels_0 = labels[:, 0]
+        # labels_1 = labels[:, 1]
+        #
+        # labels_0 = labels_0.reshape(config.image_shape.y, config.image_shape.x)
+        # labels_1 = labels_1.reshape(config.image_shape.y, config.image_shape.x)
+        #
+        # plt.title('label_0')
+        # plt.imshow(labels_0)
+        # plt.show()
+        #
+        # plt.title('label_1')
+        # plt.imshow(labels_1)
+        # plt.show()
+        #
+        # segmentation = segmentation[:, 1]
+        # segmentation = segmentation.reshape(config.image_shape.y, config.image_shape.x)
+        # plt.title('segmentation')
+        # plt.imshow(segmentation)
+        # plt.show()
+
         cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
-        print('saving sess...')
-        dst = os.path.join('D:', 'bil/model/cpu-trained-mac-epoch-{}'.format(epoch))
+        # append model name to model destination folder
+        dst = os.path.join(config.model_dst, 'epoch_{:03d}'.format(epoch))
+        cprint('Saving Model --> {}'.format(dst), 'blue')
         saver.save(sess, dst)
+
+        # M E A N  I O U
+        helper.compute_mean_iou(sess)
 
         # create movie for finished epoch
         if epoch % 5 == 0:
