@@ -180,10 +180,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
                                                  correct_label: labels,
                                                  keep_prob: 0.5})
             b += 1
-
-            # break out of training when on Mac
-
-        images, labels = next(get_batches_fn(1))
+            if b == 5: break
 
         '''
         M E A N  I O U
@@ -195,19 +192,32 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         im_softmax = sess.run(
             [tf.nn.softmax(logits)],
             {keep_prob: 1.0, input_image: images})
+
         im_softmax = im_softmax[0]
-        labels_orig = labels[0]
-        labels = labels[0].reshape(-1, 2)
+        print('im_softmax shape {}'.format(im_softmax.shape))
+
+        prediction = im_softmax.reshape(160, 576, 2)
+
+        prediction_0 = prediction[:,:,0]
+        prediction_1 = prediction[:,:,1]
+
+        prediction_1 = prediction_1 > 0.5
+
+        plt.imshow(prediction_0, cmap='gray'); plt.show()
+        plt.imshow(prediction_1, cmap='gray'); plt.show()
+
+        # labels_orig = labels[0]
+        # labels = labels[0].reshape(-1, 2)
         # im_softmax = im_softmax[:, 1].reshape(config.image_shape.x, config.image_shape.y)
         # im_softmax = im_softmax[:, 1].reshape(config.image_shape.x, config.image_shape.y)
         # segmentation = (im_softmax > 0.5).reshape(config.image_shape.x, config.image_shape.y, 1)
-        segmentation = (im_softmax > 0.5)
+        # segmentation = (im_softmax > 0.5)
         # return Tensors for metric result and to generate results
         # below is wrong b/c we are not to use the softmax scores
-        iou, iou_op = helper.define_mean_iou(labels, segmentation, num_classes=2)
-        sess.run(tf.local_variables_initializer())
-        sess.run(iou_op)
-        cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
+        # iou, iou_op = helper.define_mean_iou(labels, segmentation, num_classes=2)
+        # sess.run(tf.local_variables_initializer())
+        # sess.run(iou_op)
+        # cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
 
         # labels_0 = labels[:, 0]
         # labels_1 = labels[:, 1]
@@ -233,13 +243,13 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         # append model name to model destination folder
         dst = os.path.join(config.model_dst, 'epoch_{:03d}'.format(epoch))
         cprint('Saving Model --> {}'.format(dst), 'blue')
-        saver.save(sess, dst)
+        # saver.save(sess, dst)
 
         # M E A N  I O U
-        helper.compute_mean_iou(sess)
+        helper.compute_mean_iou(sess, logits, input_image, keep_prob)
 
         # create movie for finished epoch
-        if epoch % 5 == 0:
+        if (epoch % 5 == 0) and (epoch != 0):
             save_inference_samples(
                 runs_dir=config.runs_dir,
                 path_test_images=config.path_test_images,

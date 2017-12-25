@@ -89,6 +89,8 @@ def gen_batch_function(data_folder, image_shape):
         # the 'color' that represents drivable road
         background_color = np.array([255, 0, 0])
 
+        image_shape = (config.image_shape.y, config.image_shape.x)
+
         random.shuffle(image_paths)
         for batch_i in range(0, len(image_paths), batch_size):
             images = []
@@ -110,13 +112,10 @@ def gen_batch_function(data_folder, image_shape):
     return get_batches_fn
 
 def define_mean_iou(ground_truth, prediction, num_classes):
-    """ compute the mean IOU """
-    # sanity shape check
+    """ compute the mean IOU
+    """
     # print('shape of labels ', ground_truth.shape)       # (1, 160, 576, 2)
-    # print('len of im_softmax ', len(prediction))
-    # print('shape of im_softmax ', prediction[0].shape)  # (92160, 2)
-    ground_truth = ground_truth.reshape(-1, num_classes)
-    # print('shape of labels ', ground_truth.shape)       # (92160, 2)
+    # print('shape of prediction ', prediction.shape)  # (92160, 2)
 
     ground_truth = tf.convert_to_tensor(ground_truth)
     prediction = tf.convert_to_tensor(prediction)
@@ -125,21 +124,28 @@ def define_mean_iou(ground_truth, prediction, num_classes):
         name='mean_iou')
     return iou, iou_op
 
-def compute_mean_iou(sess):
+def compute_mean_iou(sess, logits, input_image, keep_prob):
     """
     img.shape -> (?, 2)
     gt.shape  -> (?, 2)
     """
-    get_batches_fn = helper.gen_batch_function(config.path_train_images, config.image_shape)
+    get_batches_fn = gen_batch_function(config.path_train_images, config.image_shape_01)
 
-    images, labels = next(get_batches_fn(300))
+    images, labels = next(get_batches_fn(5))
 
-    for img, gt in zip(images, labels):
-        img = img.reshape(-1, config.num_classes)
-        gt = gt.reshape(-1, config.num_classes)
-        iou, iou_op = define_mean_iou(gt, img, num_classes=config.num_classes)
-        sess.run(tf.local_variables_initializer())
-        cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
+    # print('img shape {} -- labels shape {}'.format(images.shape, labels.shape))
+
+    im_softmax = sess.run(
+        [tf.nn.softmax(logits)],
+        {keep_prob: 1.0, input_image: images})
+    im_softmax = np.array(im_softmax)
+    im_softmax = im_softmax.reshape(-1, 160, 576, 2)
+    # print('im_softmax shape {}'.format(im_softmax.shape))
+    prediction = im_softmax > 0.5
+
+    iou, iou_op = define_mean_iou(labels, prediction, num_classes=config.num_classes)
+    sess.run(tf.local_variables_initializer())
+    cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
 
 def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_shape):
     """
