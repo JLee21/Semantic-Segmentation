@@ -14,6 +14,8 @@ from termcolor import cprint
 # C U S T O M
 from movie import create_movie
 import config
+# remove before submitting
+from matplotlib import pyplot as plt
 
 
 class DLProgress(tqdm):
@@ -89,6 +91,8 @@ def gen_batch_function(data_folder, image_shape):
         # the 'color' that represents drivable road
         background_color = np.array([255, 0, 0])
 
+        image_shape = (config.image_shape.y, config.image_shape.x)
+
         random.shuffle(image_paths)
         for batch_i in range(0, len(image_paths), batch_size):
             images = []
@@ -110,13 +114,10 @@ def gen_batch_function(data_folder, image_shape):
     return get_batches_fn
 
 def define_mean_iou(ground_truth, prediction, num_classes):
-    """ compute the mean IOU """
-    # sanity shape check
+    """ compute the mean IOU
+    """
     # print('shape of labels ', ground_truth.shape)       # (1, 160, 576, 2)
-    # print('len of im_softmax ', len(prediction))
-    # print('shape of im_softmax ', prediction[0].shape)  # (92160, 2)
-    ground_truth = ground_truth.reshape(-1, num_classes)
-    # print('shape of labels ', ground_truth.shape)       # (92160, 2)
+    # print('shape of prediction ', prediction.shape)  # (92160, 2)
 
     ground_truth = tf.convert_to_tensor(ground_truth)
     prediction = tf.convert_to_tensor(prediction)
@@ -125,21 +126,42 @@ def define_mean_iou(ground_truth, prediction, num_classes):
         name='mean_iou')
     return iou, iou_op
 
-def compute_mean_iou(sess):
+def compute_mean_iou(sess, logits, input_image, keep_prob):
     """
     img.shape -> (?, 2)
     gt.shape  -> (?, 2)
     """
-    get_batches_fn = helper.gen_batch_function(config.path_train_images, config.image_shape)
+    get_batches_fn = gen_batch_function(config.path_train_images, config.image_shape_01)
 
-    images, labels = next(get_batches_fn(300))
+    images, labels = next(get_batches_fn(1))
 
-    for img, gt in zip(images, labels):
-        img = img.reshape(-1, config.num_classes)
-        gt = gt.reshape(-1, config.num_classes)
-        iou, iou_op = define_mean_iou(gt, img, num_classes=config.num_classes)
-        sess.run(tf.local_variables_initializer())
-        cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
+    # print('img shape {} -- labels shape {}'.format(images.shape, labels.shape))
+
+    prediction = sess.run(
+        [tf.nn.softmax(logits)],
+        {keep_prob: 1.0, input_image: images})
+
+    prediction = np.array(prediction)
+    prediction = prediction.reshape(-1, 160, 576, 2)
+
+    pred_thresh = prediction > 0.5
+    prediction[pred_thresh] = 1
+
+    # print(prediction)
+    # plt.title('prediction'); plt.imshow(prediction[0], cmap='gray'); plt.show()
+
+    # labels = labels[:,:,:,1]
+    # print(labels[0])
+    # plt.title('labels'); plt.imshow(labels[0], cmap='gray'); plt.show()
+
+    # print('img shape {} -- labels shape {}'.format(prediction.shape, labels.shape))
+
+    # plt.imshow(labels[0][:,:,1], cmap='gray'); plt.show()
+    # plt.imshow(prediction[0][:,:,1], cmap='gray'); plt.show()
+
+    iou, iou_op = define_mean_iou(labels, prediction, num_classes=config.num_classes)
+    sess.run(tf.local_variables_initializer())
+    cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
 
 def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_shape):
     """
@@ -189,7 +211,7 @@ def save_inference_samples(runs_dir, path_test_images, sess, image_shape,
         sess, logits, keep_prob, input_image,
         path_test_images=path_test_images,
         image_shape=image_shape)
-    for name, image in image_outputs:
+    for name, image in tqdm(image_outputs):
         scipy.misc.imsave(os.path.join(output_dir, name), image)
 
     # create movie from the still pngs we just created
