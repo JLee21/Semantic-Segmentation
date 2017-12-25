@@ -75,7 +75,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :return: The Tensor for the last layer of output
     """
     # H E L P E R S
-    kernel_regularizer = l2_regularizer(scale=1e-2)
+    kernel_regularizer = l2_regularizer(scale=1e-3)
     print('\n C O N V O L U T I O N')
     print('vgg_layer3_out shape: {}\t{}'.format(vgg_layer3_out.get_shape(), tf.shape(vgg_layer3_out)))
     print('vgg_layer4_out shape: {}\t{}'.format(vgg_layer4_out.get_shape(), tf.shape(vgg_layer4_out)))
@@ -90,25 +90,27 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
         name='layer7')
 
     # upsample vgg_layer7_out_resampled: by factor of 2 in order to go from ?x5x18x2 to ?x10x36x2
-    vgg_layer7 = tf.layers.conv2d_transpose(layer7, num_classes, 4, 2, padding='same',
+    vgg_layer7 = tf.layers.conv2d_transpose(inputs=layer7, filters=num_classes,
+        kernel_size=4, strides=2, padding='same',
         kernel_regularizer=kernel_regularizer,
         name='vgg_layer7')
 
     # resample vgg_layer4_out out by 1x1 Convolution: To go from ?x10x36x512 to ?x10x36x2
-    vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=(1, 1),
+    vgg_layer4 = tf.layers.conv2d(vgg_layer4_out, num_classes, kernel_size=1, strides=1,
         padding='same', kernel_regularizer=kernel_regularizer,
         name='vgg_layer4')
 
-    # combined_layer1 = tf.add(vgg_layer7, vgg_layer4)
+    # combined_layer1 = tf.add(vgg_layer7, vgg_layer4)\
     combined_layer1 = tf.add(vgg_layer7, vgg_layer4)
 
     # fcn_layer2: upsample combined_layer1 by factor of 2 in order to go from ?x10x36x2 to ?x20x72x2
-    fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes, 4, 2, padding='same',
+    fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes,
+        kernel_size=1, strides=2, padding='same',
         kernel_regularizer=kernel_regularizer,
         name='fcn_layer2')
 
     # resample vgg_layer3_out out by 1x1 Convolution: To go from ?x20x72x256 to ?x20x72x2
-    vgg_layer3 = tf.layers.conv2d(vgg_layer3_out, num_classes, kernel_size=1, strides=(1,1),
+    vgg_layer3 = tf.layers.conv2d(vgg_layer3_out, filters=num_classes, kernel_size=1, strides=1,
         padding='same',
         name='vgg_layer3')
 
@@ -116,8 +118,9 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     combined_layer2 = tf.add(vgg_layer3, fcn_layer2)
 
     # upsample combined_layer2 by factor of 8 in order to go from ?x20x72x2 to ?x160x576x2
-    output = tf.layers.conv2d_transpose(combined_layer2, num_classes, 4, 8,
-        padding='same', kernel_regularizer=kernel_regularizer,
+    output = tf.layers.conv2d_transpose(combined_layer2, num_classes,
+        kernel_size=4, strides=8, padding='same',
+        kernel_regularizer=kernel_regularizer,
         name='output_layer')
 
     cprint('Layers Constructed', 'blue', 'on_white')
