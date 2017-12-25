@@ -15,6 +15,10 @@ data_dir = './data'
 runs_dir = './runs'
 path_train_images = os.path.join(data_dir, 'data_road/training')
 path_test_images = os.path.join(data_dir, 'data_road/testing/image_2/*.png')
+# how often to perform Inference tests and to create timelapse (epoch % create_movie_interval == 0)
+create_movie_interval = 1
+# how many recent models to save
+models_to_keep = 2
 
 if 'darwin' in sys.platform:
     model_dst = os.path.abspath('model')

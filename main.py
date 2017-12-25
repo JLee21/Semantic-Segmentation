@@ -82,7 +82,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     print('vgg_layer7_out shape: {}\t{}'.format(vgg_layer7_out.get_shape(), tf.shape(vgg_layer7_out)))
 
     # R E S A M P L E
-    # we already have the 'convolution' part from the downloaded VGG16 model
+    # we already have the 'convolution' portion from the downloaded VGG16 model
     # here, we are adding a 1x1 convolution instead of creating a fully-connected layer
     # resample vgg_layer7_out by 1x1 Convolution: To go from ?x5x18x4096 to ?x5x18x2
     layer7 = tf.layers.conv2d(vgg_layer7_out, num_classes, kernel_size=1, strides=(1, 1),
@@ -169,7 +169,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
     :param learning_rate: TF Placeholder for learning rate
     """
 
-    saver = tf.train.Saver(max_to_keep=2)
+    saver = tf.train.Saver(max_to_keep=config.models_to_keep)
 
     sess.run(tf.global_variables_initializer())
 
@@ -183,7 +183,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
                                                  correct_label: labels,
                                                  keep_prob: 0.5})
             b += 1
-            if b == 5: break
+            # if b == 5: break
 
         '''
         M E A N  I O U
@@ -242,22 +242,23 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         # plt.imshow(segmentation)
         # plt.show()
 
+        # S A V E  M O D E L
         cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
         # append model name to model destination folder
         dst = os.path.join(config.model_dst, 'epoch_{:03d}'.format(epoch))
         cprint('Saving Model --> {}'.format(dst), 'blue')
-        # saver.save(sess, dst)
+        saver.save(sess, dst)
 
         # M E A N  I O U
         helper.compute_mean_iou(sess, logits, input_image, keep_prob)
 
         # create movie for finished epoch
-        if (epoch % 5 == 0) and (epoch != 0):
+        if epoch % config.create_movie_interval == 0:
             save_inference_samples(
                 runs_dir=config.runs_dir,
                 path_test_images=config.path_test_images,
                 sess=sess,
-                image_shape=config.image_shape,
+                image_shape=config.image_shape_01,
                 logits=logits,
                 keep_prob=keep_prob,
                 input_image=input_image,

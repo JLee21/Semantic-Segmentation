@@ -133,26 +133,33 @@ def compute_mean_iou(sess, logits, input_image, keep_prob):
     """
     get_batches_fn = gen_batch_function(config.path_train_images, config.image_shape_01)
 
-    images, labels = next(get_batches_fn(5))
+    images, labels = next(get_batches_fn(1))
 
     # print('img shape {} -- labels shape {}'.format(images.shape, labels.shape))
 
-    im_softmax = sess.run(
+    prediction = sess.run(
         [tf.nn.softmax(logits)],
         {keep_prob: 1.0, input_image: images})
-    im_softmax = np.array(im_softmax)
-    im_softmax = im_softmax.reshape(-1, 160, 576, 2)
-    prediction = im_softmax[:,:,:,1] > 0.5
 
-    print(prediction[0])
+    prediction = np.array(prediction)
+    prediction = prediction.reshape(-1, 160, 576, 2)
+
+    pred_thresh = prediction > 0.5
+    prediction[pred_thresh] = 1
+
+    # print(prediction)
     # plt.title('prediction'); plt.imshow(prediction[0], cmap='gray'); plt.show()
 
-    labels = labels[:,:,:,1]
-    print(labels[0])
+    # labels = labels[:,:,:,1]
+    # print(labels[0])
     # plt.title('labels'); plt.imshow(labels[0], cmap='gray'); plt.show()
 
-    print('img shape {} -- labels shape {}'.format(prediction.shape, labels.shape))
-    iou, iou_op = define_mean_iou(labels[0], prediction[0], num_classes=config.num_classes)
+    # print('img shape {} -- labels shape {}'.format(prediction.shape, labels.shape))
+
+    # plt.imshow(labels[0][:,:,1], cmap='gray'); plt.show()
+    # plt.imshow(prediction[0][:,:,1], cmap='gray'); plt.show()
+
+    iou, iou_op = define_mean_iou(labels, prediction, num_classes=config.num_classes)
     sess.run(tf.local_variables_initializer())
     cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
 
@@ -204,7 +211,7 @@ def save_inference_samples(runs_dir, path_test_images, sess, image_shape,
         sess, logits, keep_prob, input_image,
         path_test_images=path_test_images,
         image_shape=image_shape)
-    for name, image in image_outputs:
+    for name, image in tqdm(image_outputs):
         scipy.misc.imsave(os.path.join(output_dir, name), image)
 
     # create movie from the still pngs we just created
