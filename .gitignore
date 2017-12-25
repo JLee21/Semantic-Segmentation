@@ -3,6 +3,7 @@ data/
 tensorboard/
 .DS_Store
 model/
+*.swp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

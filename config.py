@@ -6,7 +6,6 @@ from termcolor import cprint
 Image_Shape = namedtuple('Image_Shape', 'x y')
 
 num_classes = 2
-image_shape_01 = (160, 576)
 image_shape = Image_Shape(x=576, y=160)
 EPOCHS = 5
 BATCH_SIZE = 1
