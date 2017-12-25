@@ -14,6 +14,8 @@ from termcolor import cprint
 # C U S T O M
 from movie import create_movie
 import config
+# remove before submitting
+from matplotlib import pyplot as plt
 
 
 class DLProgress(tqdm):
@@ -140,10 +142,17 @@ def compute_mean_iou(sess, logits, input_image, keep_prob):
         {keep_prob: 1.0, input_image: images})
     im_softmax = np.array(im_softmax)
     im_softmax = im_softmax.reshape(-1, 160, 576, 2)
-    # print('im_softmax shape {}'.format(im_softmax.shape))
-    prediction = im_softmax > 0.5
+    prediction = im_softmax[:,:,:,1] > 0.5
 
-    iou, iou_op = define_mean_iou(labels, prediction, num_classes=config.num_classes)
+    print(prediction[0])
+    # plt.title('prediction'); plt.imshow(prediction[0], cmap='gray'); plt.show()
+
+    labels = labels[:,:,:,1]
+    print(labels[0])
+    # plt.title('labels'); plt.imshow(labels[0], cmap='gray'); plt.show()
+
+    print('img shape {} -- labels shape {}'.format(prediction.shape, labels.shape))
+    iou, iou_op = define_mean_iou(labels[0], prediction[0], num_classes=config.num_classes)
     sess.run(tf.local_variables_initializer())
     cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
 

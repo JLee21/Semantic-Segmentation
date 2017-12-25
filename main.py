@@ -105,7 +105,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
 
     # fcn_layer2: upsample combined_layer1 by factor of 2 in order to go from ?x10x36x2 to ?x20x72x2
     fcn_layer2 = tf.layers.conv2d_transpose(combined_layer1, num_classes,
-        kernel_size=1, strides=2, padding='same',
+        kernel_size=32, strides=2, padding='same',
         kernel_regularizer=kernel_regularizer,
         name='fcn_layer2')
 
@@ -119,7 +119,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
 
     # upsample combined_layer2 by factor of 8 in order to go from ?x20x72x2 to ?x160x576x2
     output = tf.layers.conv2d_transpose(combined_layer2, num_classes,
-        kernel_size=4, strides=8, padding='same',
+        kernel_size=32, strides=8, padding='same',
         kernel_regularizer=kernel_regularizer,
         name='output_layer')
 
@@ -192,22 +192,22 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         each array is shape (?, 2)
         each array is a softmax score to eash pixel
         '''
-        im_softmax = sess.run(
-            [tf.nn.softmax(logits)],
-            {keep_prob: 1.0, input_image: images})
-
-        im_softmax = im_softmax[0]
-        print('im_softmax shape {}'.format(im_softmax.shape))
-
-        prediction = im_softmax.reshape(160, 576, 2)
-
-        prediction_0 = prediction[:,:,0]
-        prediction_1 = prediction[:,:,1]
-
-        prediction_1 = prediction_1 > 0.5
-
-        plt.imshow(prediction_0, cmap='gray'); plt.show()
-        plt.imshow(prediction_1, cmap='gray'); plt.show()
+        # im_softmax = sess.run(
+        #     [tf.nn.softmax(logits)],
+        #     {keep_prob: 1.0, input_image: images})
+        #
+        # im_softmax = im_softmax[0]
+        # print('im_softmax shape {}'.format(im_softmax.shape))
+        #
+        # prediction = im_softmax.reshape(160, 576, 2)
+        #
+        # prediction_0 = prediction[:,:,0]
+        # prediction_1 = prediction[:,:,1]
+        #
+        # prediction_1 = prediction_1 > 0.5
+        #
+        # plt.imshow(prediction_0, cmap='gray'); plt.show()
+        # plt.imshow(prediction_1, cmap='gray'); plt.show()
 
         # labels_orig = labels[0]
         # labels = labels[0].reshape(-1, 2)
