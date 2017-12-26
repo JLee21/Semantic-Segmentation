@@ -235,7 +235,7 @@ def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_s
 
         yield os.path.basename(image_file), np.array(street_im)
 
-def create_visual_stack_images(sess, logits, keep_prob, image_pl, path_test_images, image_shape):
+def create_visual_stack_images(sess, logits, keep_prob, image_pl, image_shape, dst):
     """ Visually stack the ground_truth image on top of the predicted image
 
     """
@@ -249,18 +249,29 @@ def create_visual_stack_images(sess, logits, keep_prob, image_pl, path_test_imag
 
     # x == prediction image, y == ground_truth image
     for x,y in visual_gen:
-        x = scipy.misc.imresize(x image_shape)
+        x = scipy.misc.imresize(x, image_shape)
 
         print('[create_visual_stack_images] shape prediction {} -- shape label {}'.format(x.shape, y.shape))
         im_softmax = sess.run(
             [tf.nn.softmax(logits)],
             {keep_prob: 1.0, image_pl: [x]})
-        im_softmax = im_softmax[0][:, 1].reshape(image_shape[0], image_shape[1])
-        segmentation = (im_softmax > 0.5).reshape(image_shape[0], image_shape[1], 1)
+        im_softmax = im_softmax[0][:, 1].reshape(image_shape.y, image_shape.x)
+        segmentation = (im_softmax > 0.5).reshape(image_shape.y, image_shape.x, 1)
         mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
         mask = scipy.misc.toimage(mask, mode="RGBA")
         street_im = scipy.misc.toimage(image)
         street_im.paste(mask, box=None, mask=mask)
+        x = stree_im
+
+        y = scipy.misc.toimage(y, mode='RGBA')
+
+        print('prediction shape {} -- labels shape {}'.format(x.shape, y.shape))
+
+        z = np.vstack([y, x])
+
+        print('stack shape {}'.format(z.shape))
+
+        scipy.misc.imsave(dst, z)
 
 
 def save_inference_samples(runs_dir, path_test_images, sess, image_shape,

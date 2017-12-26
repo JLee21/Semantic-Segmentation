@@ -178,73 +178,14 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         start = time()
         b = 0
         for images, labels in tqdm(get_batches_fn(batch_size)):
-            start_batch = time()
             sess.run(train_op, feed_dict={input_image: images,
-                                                 correct_label: labels,
-                                                 keep_prob: 0.5})
+                                          correct_label: labels,
+                                          keep_prob: 0.5})
             b += 1
             # if b == 5: break
 
-        '''
-        M E A N  I O U
-
-        im_softmax is list of numpy arrays.
-        each array is shape (?, 2)
-        each array is a softmax score to eash pixel
-        '''
-        # im_softmax = sess.run(
-        #     [tf.nn.softmax(logits)],
-        #     {keep_prob: 1.0, input_image: images})
-        #
-        # im_softmax = im_softmax[0]
-        # print('im_softmax shape {}'.format(im_softmax.shape))
-        #
-        # prediction = im_softmax.reshape(160, 576, 2)
-        #
-        # prediction_0 = prediction[:,:,0]
-        # prediction_1 = prediction[:,:,1]
-        #
-        # prediction_1 = prediction_1 > 0.5
-        #
-        # plt.imshow(prediction_0, cmap='gray'); plt.show()
-        # plt.imshow(prediction_1, cmap='gray'); plt.show()
-
-        # labels_orig = labels[0]
-        # labels = labels[0].reshape(-1, 2)
-        # im_softmax = im_softmax[:, 1].reshape(config.image_shape.x, config.image_shape.y)
-        # im_softmax = im_softmax[:, 1].reshape(config.image_shape.x, config.image_shape.y)
-        # segmentation = (im_softmax > 0.5).reshape(config.image_shape.x, config.image_shape.y, 1)
-        # segmentation = (im_softmax > 0.5)
-        # return Tensors for metric result and to generate results
-        # below is wrong b/c we are not to use the softmax scores
-        # iou, iou_op = helper.define_mean_iou(labels, segmentation, num_classes=2)
-        # sess.run(tf.local_variables_initializer())
-        # sess.run(iou_op)
-        # cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
-
-        # labels_0 = labels[:, 0]
-        # labels_1 = labels[:, 1]
-        #
-        # labels_0 = labels_0.reshape(config.image_shape.y, config.image_shape.x)
-        # labels_1 = labels_1.reshape(config.image_shape.y, config.image_shape.x)
-        #
-        # plt.title('label_0')
-        # plt.imshow(labels_0)
-        # plt.show()
-        #
-        # plt.title('label_1')
-        # plt.imshow(labels_1)
-        # plt.show()
-        #
-        # segmentation = segmentation[:, 1]
-        # segmentation = segmentation.reshape(config.image_shape.y, config.image_shape.x)
-        # plt.title('segmentation')
-        # plt.imshow(segmentation)
-        # plt.show()
-
         # S A V E  M O D E L
         cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
-        # append model name to model destination folder
         dst = os.path.join(config.model_dst, 'epoch_{:03d}'.format(epoch))
         cprint('Saving Model --> {}'.format(dst), 'blue')
         saver.save(sess, dst)
@@ -263,7 +204,6 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
                 keep_prob=keep_prob,
                 input_image=input_image,
                 epoch=epoch)
-
 
 if test_flag: tests.test_train_nn(train_nn)
 
