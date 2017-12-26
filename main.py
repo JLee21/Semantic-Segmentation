@@ -182,18 +182,21 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
                                           correct_label: labels,
                                           keep_prob: 0.5})
             b += 1
-            # if b == 5: break
+            if b == 1: break
 
         # S A V E  M O D E L
         cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
         dst = os.path.join(config.model_dst, 'epoch_{:03d}'.format(epoch))
         cprint('Saving Model --> {}'.format(dst), 'blue')
-        saver.save(sess, dst)
+        # saver.save(sess, dst)
 
         # M E A N  I O U
         helper.compute_mean_iou(sess, logits, input_image, keep_prob)
 
-        # create movie for finished epoch
+        # L A B E L  &  P R E D I C T I O N  C O M P A R I S O N
+        helper.create_visual_stack_images(sess, logits, keep_prob, image_pl=input_image)
+
+        # C R E A T E  T E S T  I M A G E S  &  M O V I E
         if epoch % config.create_movie_interval == 0:
             save_inference_samples(
                 runs_dir=config.runs_dir,

@@ -12,6 +12,7 @@ BATCH_SIZE = 1
 LRN_RATE = 1e-3
 data_dir = './data'
 runs_dir = './runs'
+visual_dir = './visual'
 path_train_images = os.path.join(data_dir, 'data_road/training')
 path_test_images = os.path.join(data_dir, 'data_road/testing/image_2/*.png')
 # how often to perform Inference tests and to create timelapse (epoch % create_movie_interval == 0)

@@ -175,7 +175,7 @@ def compute_mean_iou(sess, logits, input_image, keep_prob):
     img.shape -> (?, 2)
     gt.shape  -> (?, 2)
     """
-    get_batches_fn = gen_batch_function(config.path_train_images, config.image_shape_01)
+    get_batches_fn = gen_batch_function(config.path_train_images, config.image_shape)
 
     images, labels = next(get_batches_fn(1))
 
@@ -235,7 +235,7 @@ def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_s
 
         yield os.path.basename(image_file), np.array(street_im)
 
-def create_visual_stack_images(sess, logits, keep_prob, image_pl, image_shape, dst):
+def create_visual_stack_images(sess, logits, keep_prob, image_pl):
     """ Visually stack the ground_truth image on top of the predicted image
 
     """
@@ -248,8 +248,13 @@ def create_visual_stack_images(sess, logits, keep_prob, image_pl, image_shape, d
     visual_gen = visual_fn(batch_size=batch_size)
 
     # x == prediction image, y == ground_truth image
-    for x,y in visual_gen:
-        x = scipy.misc.imresize(x, image_shape)
+    for i, imgs in enumerate(visual_gen):
+        print(i)
+        x = imgs[0][0]
+        y = imgs[1][0]
+        print(x.shape)
+        print(y.shape)
+        x = scipy.misc.imresize(x, (160, 576))
 
         print('[create_visual_stack_images] shape prediction {} -- shape label {}'.format(x.shape, y.shape))
         im_softmax = sess.run(
@@ -257,20 +262,22 @@ def create_visual_stack_images(sess, logits, keep_prob, image_pl, image_shape, d
             {keep_prob: 1.0, image_pl: [x]})
         im_softmax = im_softmax[0][:, 1].reshape(image_shape.y, image_shape.x)
         segmentation = (im_softmax > 0.5).reshape(image_shape.y, image_shape.x, 1)
+        print('segmentation shape ', segmentation.shape)
         mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
+        print('mask shape ', mask.shape)
         mask = scipy.misc.toimage(mask, mode="RGBA")
-        street_im = scipy.misc.toimage(image)
+        street_im = scipy.misc.toimage(x)
         street_im.paste(mask, box=None, mask=mask)
-        x = stree_im
+        x = np.array(street_im)
+        y = np.array(y)
 
-        y = scipy.misc.toimage(y, mode='RGBA')
-
-        print('prediction shape {} -- labels shape {}'.format(x.shape, y.shape))
+        print('x shape {} y shape {}'.format(x.shape, y.shape))
 
         z = np.vstack([y, x])
 
         print('stack shape {}'.format(z.shape))
 
+        dst = os.path.join(config.visual_dir, '{:03d}.png'.format(i))
         scipy.misc.imsave(dst, z)
 
 
