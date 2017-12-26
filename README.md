@@ -1,4 +1,6 @@
 # Semantic-Segmentation
-Part of Udacity's NanoDegree: Self-Driving Car Engineer. Third Term. Second Project
 
-[]()
+Term 3 out of 3
+Project 2
+
+![road_gif](https://github.com/JLee21/Semantic-Segmentation/blob/master/img/road_social.gif)
