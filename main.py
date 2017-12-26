@@ -194,7 +194,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         helper.compute_mean_iou(sess, logits, input_image, keep_prob)
 
         # L A B E L  &  P R E D I C T I O N  C O M P A R I S O N
-        helper.create_visual_stack_images(sess, logits, keep_prob, image_pl=input_image)
+        # helper.create_visual_stack_images(sess, logits, keep_prob, image_pl=input_image)
 
         # C R E A T E  T E S T  I M A G E S  &  M O V I E
         if epoch % config.create_movie_interval == 0:

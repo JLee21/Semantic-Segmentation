@@ -219,21 +219,40 @@ def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_s
     :return: Output for for each test image
     """
 
+    data_folder = config.path_train_images
+    image_shape = config.image_shape
+    batch_size = 1
+
+    visual_fn = gen_batch_function_visual_stack(data_folder=data_folder, image_shape=image_shape)
+
+    visual_gen = visual_fn(batch_size=batch_size)
+
     # return Tensors for metric result and to generate results
-    for image_file in glob(path_test_images):
-        image = scipy.misc.imresize(scipy.misc.imread(image_file), image_shape)
+    # for image_file in glob(path_test_images):
+    for i, imgs in tqdm(enumerate(visual_gen)):
+        # image = scipy.misc.imresize(scipy.misc.imread(image_file), image_shape)
+        # # x == prediction image, y == ground_truth image
+        x = imgs[0][0]
+        y = imgs[1][0]
 
         im_softmax = sess.run(
             [tf.nn.softmax(logits)],
-            {keep_prob: 1.0, image_pl: [image]})
+            {keep_prob: 1.0, image_pl: [x]})
         im_softmax = im_softmax[0][:, 1].reshape(image_shape.y, image_shape.x)
         segmentation = (im_softmax > 0.5).reshape(image_shape.y, image_shape.x, 1)
         mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
         mask = scipy.misc.toimage(mask, mode="RGBA")
-        street_im = scipy.misc.toimage(image)
+        street_im = scipy.misc.toimage(x)
         street_im.paste(mask, box=None, mask=mask)
 
-        yield os.path.basename(image_file), np.array(street_im)
+        x = np.array(street_im)
+        y = np.array(y)
+
+        z = np.vstack([y, x])
+
+        file_name = '{:03d}.png'.format(i)
+
+        yield (file_name, z)
 
 def create_visual_stack_images(sess, logits, keep_prob, image_pl):
     """ Visually stack the ground_truth image on top of the predicted image
@@ -248,13 +267,11 @@ def create_visual_stack_images(sess, logits, keep_prob, image_pl):
     visual_gen = visual_fn(batch_size=batch_size)
 
     # x == prediction image, y == ground_truth image
-    for i, imgs in enumerate(visual_gen):
-        print(i)
+    for i, imgs in tqdm(enumerate(visual_gen)):
         x = imgs[0][0]
         y = imgs[1][0]
         print(x.shape)
         print(y.shape)
-        x = scipy.misc.imresize(x, (160, 576))
 
         print('[create_visual_stack_images] shape prediction {} -- shape label {}'.format(x.shape, y.shape))
         im_softmax = sess.run(
@@ -280,7 +297,6 @@ def create_visual_stack_images(sess, logits, keep_prob, image_pl):
         dst = os.path.join(config.visual_dir, '{:03d}.png'.format(i))
         scipy.misc.imsave(dst, z)
 
-
 def save_inference_samples(runs_dir, path_test_images, sess, image_shape,
     logits, keep_prob, input_image, epoch='na'):
     """
@@ -289,18 +305,18 @@ def save_inference_samples(runs_dir, path_test_images, sess, image_shape,
     3) Create a movie/time-lapse of images saved in said Folder
     """
     # Make folder for current run
-    output_dir = os.path.join(runs_dir, '-'.join(['EPOCH', str(epoch), str(time.time())]))
+    output_dir = os.path.join(runs_dir, '-'.join(['EPOCH', str(epoch), str(int(time.time()))]))
     if os.path.exists(output_dir):
         shutil.rmtree(output_dir)
     os.makedirs(output_dir)
 
     # Run NN on test images and save them to HD
-    print('Training Finished. Saving test images to: {}'.format(output_dir))
+    cprint('Training Finished. Saving test images to: {}'.format(output_dir), 'blue')
     image_outputs = gen_test_output(
         sess, logits, keep_prob, input_image,
         path_test_images=path_test_images,
         image_shape=image_shape)
-    for name, image in tqdm(image_outputs):
+    for name, image in image_outputs:
         scipy.misc.imsave(os.path.join(output_dir, name), image)
 
     # create movie from the still pngs we just created
