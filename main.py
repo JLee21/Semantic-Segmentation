@@ -3,6 +3,7 @@ import os; os.system('cls'); os.system('clear')
 import sys
 import tensorflow as tf
 from tensorflow.contrib.layers import l2_regularizer
+import numpy as np
 import helper
 import warnings
 from distutils.version import LooseVersion
@@ -156,21 +157,22 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
 
 if test_flag: tests.test_optimize(optimize)
 
-def evaluate_loss():
+def evaluate_loss(sess, cross_entropy_loss, input_image, labels, keep_prob):
 
     get_batches_fn = helper.gen_batch_function(data_folder=config.path_train_images,
                                                image_shape=config.image_shape)
 
-    get_batches_gen = gen_batch_fn(config.batch_size_loss)
+    get_batches_gen = get_batches_fn(config.batch_size_loss)
 
     for images, labels in get_batches_gen:
+        print('images shape {} labels shape {}'.format(images.shape, labels.shape))
         loss = sess.run(cross_entropy_loss,
                          feed_dict={
                             input_image: images,
-                            labels: labels,
-                            keep_prob: 1
+                            labels: labels
+                            # keep_prob: 1
                          })
-         print('loss', loss)
+        print('loss', loss)
 
 
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
@@ -194,19 +196,42 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
 
     sess.run(tf.global_variables_initializer())
 
+    cprint('Trainable', 'blue', 'on_grey')
+    for i in tf.trainable_variables():
+        print(i)
+
+    losses = []
     for epoch in range(epochs):
 
         start = time()
         b = 0
         for images, labels in tqdm(get_batches_fn(batch_size)):
-            output = sess.run(train_op, feed_dict={input_image: images,
+            sess.run(train_op, feed_dict={input_image: images,
                                           correct_label: labels,
                                           keep_prob: 0.5})
 
-            print('output\n', output)
+
+
             b += 1
             if b == 1: break
-            sys.exit()
+
+        # evaluate_loss(sess,
+        #               cross_entropy_loss,
+        #               input_image,
+        #               correct_label,
+        #               keep_prob)
+        logits = sess.run(logits, {input_image: images, keep_prob: 1})
+
+        print('logits shape ', logits.shape)
+        softmax = tf.nn.softmax_cross_entropy_with_logits(
+            labels=labels,
+            logits=logits
+        )
+        print('softmax shape ', softmax.shape)
+        cross_entropy_loss = tf.reduce_mean(softmax)
+        loss = cross_entropy_loss.eval()
+        print('cross_entropy_loss {}'.format(loss), 'blue')
+        losses.append(loss)
 
         # S A V E  M O D E L
         cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
@@ -231,6 +256,10 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
                 keep_prob=keep_prob,
                 input_image=input_image,
                 epoch=epoch)
+
+    plt.title('Cross Entropy Loss')
+    plt.plot(losses)
+    plt.savefig('loss.png')
 
 if test_flag: tests.test_train_nn(train_nn)
 
