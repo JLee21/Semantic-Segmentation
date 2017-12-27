@@ -177,33 +177,35 @@ def compute_mean_iou(sess, logits, input_image, keep_prob):
     """
     get_batches_fn = gen_batch_function(config.path_train_images, config.image_shape)
 
-    images, labels = next(get_batches_fn(1))
+    # images, labels = next(get_batches_fn(100))
 
-    # print('img shape {} -- labels shape {}'.format(images.shape, labels.shape))
+    accum_mean = 0
+    counter = 0
+    cprint('Computing Mean_IOU', 'blue')
+    for images, labels in tqdm(get_batches_fn(1)):
+        counter += 1
+        prediction = sess.run(
+            [tf.nn.softmax(logits)],
+            {keep_prob: 1.0, input_image: images})
 
-    prediction = sess.run(
-        [tf.nn.softmax(logits)],
-        {keep_prob: 1.0, input_image: images})
+        prediction = np.array(prediction)
+        prediction = prediction.reshape(-1, 160, 576, 2)
 
-    prediction = np.array(prediction)
-    prediction = prediction.reshape(-1, 160, 576, 2)
+        pred_thresh = prediction > 0.5
+        prediction[pred_thresh] = 1
 
-    pred_thresh = prediction > 0.5
-    prediction[pred_thresh] = 1
+        iou, iou_op = define_mean_iou(labels, prediction, num_classes=config.num_classes)
+        sess.run(tf.local_variables_initializer())
+        mean_mat = sess.run(iou_op)
+        mean_acc = sess.run(iou)
+        accum_mean += mean_acc
 
-    labels_thresh = labels == True
-    labels[labels_thresh] = 1
-    labels_thresh = labels == False
-    labels[labels_thresh] = 0
+        # I don't have enough GPU goodness to run all images
+        if counter == config.mean_iou_counter: break
 
-    # print('prediction shape {} -- labels shape {}'.format(prediction.shape, labels.shape))
+    mean_acc = accum_mean / counter
+    cprint('\nMEAN IOU: {0:3.5f}'.format(mean_acc), 'green', 'on_grey')
 
-    iou, iou_op = define_mean_iou(labels, prediction, num_classes=config.num_classes)
-    sess.run(tf.local_variables_initializer())
-    mean_mat = sess.run(iou_op)
-    cprint('mean_io\n{}'.format(mean_mat), 'green', 'on_grey')
-    mean_acc = sess.run(iou)
-    cprint('MEAN IOU: {0:3.5f}'.format(mean_acc), 'green', 'on_grey')
     return mean_acc
 
 def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_shape):

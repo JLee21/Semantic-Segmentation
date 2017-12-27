@@ -157,23 +157,6 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
 
 if test_flag: tests.test_optimize(optimize)
 
-def evaluate_loss(sess, cross_entropy_loss, input_image, labels, keep_prob):
-
-    get_batches_fn = helper.gen_batch_function(data_folder=config.path_train_images,
-                                               image_shape=config.image_shape)
-
-    get_batches_gen = get_batches_fn(config.batch_size_loss)
-
-    for images, labels in get_batches_gen:
-        print('images shape {} labels shape {}'.format(images.shape, labels.shape))
-        loss = sess.run(cross_entropy_loss,
-                         feed_dict={
-                            input_image: images,
-                            labels: labels
-                            # keep_prob: 1
-                         })
-        print('loss', loss)
-
 
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
              cross_entropy_loss, input_image, correct_label,
@@ -206,22 +189,10 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         cprint('epoch {}'.format(epoch), 'blue')
 
         start = time()
-        b = 0
         for images, labels in tqdm(get_batches_fn(batch_size)):
             sess.run(train_op, feed_dict={input_image: images,
                                           correct_label: labels,
                                           keep_prob: 0.5})
-
-
-
-            b += 1
-            if b == 1: break
-
-        # evaluate_loss(sess,
-        #               cross_entropy_loss,
-        #               input_image,
-        #               correct_label,
-        #               keep_prob)
 
         # M E A N  I O U
         mean_iou = helper.compute_mean_iou(sess, logits, input_image, keep_prob)
@@ -239,19 +210,19 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         cprint('LOSS: {0:3.5f}'.format(loss), 'green', 'on_grey')
 
         # S A V E  M O D E L
-        # helper.save_model(sess=sess, saver=saver, epoch=epoch, start_time=start)
+        helper.save_model(sess=sess, saver=saver, epoch=epoch, start_time=start)
 
         # C R E A T E  T E S T  I M A G E S  &  M O V I E
-        # if epoch % config.create_movie_interval == 0:
-        #     save_inference_samples(
-        #         runs_dir=config.runs_dir,
-        #         path_test_images=config.path_test_images,
-        #         sess=sess,
-        #         image_shape=config.image_shape,
-        #         logits=logits,
-        #         keep_prob=keep_prob,
-        #         input_image=input_image,
-        #         epoch=epoch)
+        if epoch % config.create_movie_interval == 0:
+            save_inference_samples(
+                runs_dir=config.runs_dir,
+                path_test_images=config.path_test_images,
+                sess=sess,
+                image_shape=config.image_shape,
+                logits=logits,
+                keep_prob=keep_prob,
+                input_image=input_image,
+                epoch=epoch)
 
     helper.plot_progress(loss=losses, acc=mean_ious)
 

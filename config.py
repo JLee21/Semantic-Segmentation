@@ -7,7 +7,7 @@ Image_Shape = namedtuple('Image_Shape', 'x y')
 
 num_classes = 2
 image_shape = Image_Shape(x=576, y=160)
-EPOCHS = 10
+EPOCHS = 5
 BATCH_SIZE = 1 # GTX 1050 can only support a size of 1
 batch_size_loss = 1
 LRN_RATE = 1e-3
@@ -16,6 +16,7 @@ runs_dir = './runs'
 visual_dir = './visual'
 path_train_images = os.path.join(data_dir, 'data_road/training')
 path_test_images = os.path.join(data_dir, 'data_road/testing/image_2/*.png')
+mean_iou_counter = 10
 # how often to perform Inference tests and to create timelapse (epoch % create_movie_interval == 0)
 create_movie_interval = 1
 # how many recent models to save
