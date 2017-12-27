@@ -7,7 +7,7 @@ Image_Shape = namedtuple('Image_Shape', 'x y')
 
 num_classes = 2
 image_shape = Image_Shape(x=576, y=160)
-EPOCHS = 15
+EPOCHS = 10
 BATCH_SIZE = 1 # GTX 1050 can only support a size of 1
 batch_size_loss = 1
 LRN_RATE = 1e-3
@@ -20,6 +20,9 @@ path_test_images = os.path.join(data_dir, 'data_road/testing/image_2/*.png')
 create_movie_interval = 1
 # how many recent models to save
 models_to_keep = 2
+# file path for progress plot_progress
+progress_plot_dst = 'img/progress.png'
+assert os.path.isdir('img')
 
 if 'darwin' in sys.platform:
     model_dst = os.path.abspath('model')

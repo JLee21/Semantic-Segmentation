@@ -16,6 +16,7 @@ from movie import create_movie
 import config
 # remove before submitting
 from matplotlib import pyplot as plt
+plt.style.use('fivethirtyeight')
 
 
 class DLProgress(tqdm):
@@ -195,22 +196,15 @@ def compute_mean_iou(sess, logits, input_image, keep_prob):
     labels_thresh = labels == False
     labels[labels_thresh] = 0
 
-    # prediction = prediction.reshape(-1, 2)
-    # labels = labels.reshape(-1, 2)
-
-    print(labels)
-
-    print('prediction shape {} -- labels shape {}'.format(prediction.shape, labels.shape))
-
-    # plt.imshow(labels[0][:,:,1], cmap='gray'); plt.show()
-    # plt.imshow(prediction[0][:,:,1], cmap='gray'); plt.show()
+    # print('prediction shape {} -- labels shape {}'.format(prediction.shape, labels.shape))
 
     iou, iou_op = define_mean_iou(labels, prediction, num_classes=config.num_classes)
     sess.run(tf.local_variables_initializer())
     mean_mat = sess.run(iou_op)
-    print('mean_io,{}'.format(mean_mat), 'green', 'on_grey')
-    mean
-    cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
+    cprint('mean_io\n{}'.format(mean_mat), 'green', 'on_grey')
+    mean_acc = sess.run(iou)
+    cprint('MEAN IOU: {0:3.5f}'.format(mean_acc), 'green', 'on_grey')
+    return mean_acc
 
 def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_shape):
     """
@@ -259,48 +253,35 @@ def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_s
 
         yield (file_name, z)
 
-def create_visual_stack_images(sess, logits, keep_prob, image_pl):
-    """ Visually stack the ground_truth image on top of the predicted image
 
-    """
-    data_folder = config.path_train_images
-    image_shape = config.image_shape
-    batch_size = 1
+def plot_progress(loss, acc):
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
 
-    visual_fn = gen_batch_function_visual_stack(data_folder=data_folder, image_shape=image_shape)
+    ax2 = ax1.twinx()
+    legends = ['loss', 'acc']
+    plt.legend(legends)
 
-    visual_gen = visual_fn(batch_size=batch_size)
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Cross Entropy Loss')
+    line1 = ax1.plot(loss, label='Loss', c='r')
 
-    # x == prediction image, y == ground_truth image
-    for i, imgs in tqdm(enumerate(visual_gen)):
-        x = imgs[0][0]
-        y = imgs[1][0]
-        print(x.shape)
-        print(y.shape)
+    ax2.set_ylabel('Mean IOU Accuracy')
+    line2 = ax2.plot(acc, label='Acc', c='g')
 
-        print('[create_visual_stack_images] shape prediction {} -- shape label {}'.format(x.shape, y.shape))
-        im_softmax = sess.run(
-            [tf.nn.softmax(logits)],
-            {keep_prob: 1.0, image_pl: [x]})
-        im_softmax = im_softmax[0][:, 1].reshape(image_shape.y, image_shape.x)
-        segmentation = (im_softmax > 0.5).reshape(image_shape.y, image_shape.x, 1)
-        print('segmentation shape ', segmentation.shape)
-        mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
-        print('mask shape ', mask.shape)
-        mask = scipy.misc.toimage(mask, mode="RGBA")
-        street_im = scipy.misc.toimage(x)
-        street_im.paste(mask, box=None, mask=mask)
-        x = np.array(street_im)
-        y = np.array(y)
+    ax1.legend(loc='best')
+    ax2.legend(loc='best')
 
-        print('x shape {} y shape {}'.format(x.shape, y.shape))
+    plt.tight_layout()
+    plt.title('Training Progress')
 
-        z = np.vstack([y, x])
+    fig.savefig(config.progress_plot_dst)
 
-        print('stack shape {}'.format(z.shape))
-
-        dst = os.path.join(config.visual_dir, '{:03d}.png'.format(i))
-        scipy.misc.imsave(dst, z)
+def save_model(sess, saver, epoch, start_time):
+    cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time.time()-start_time)/60), 'blue', 'on_white')
+    dst = os.path.join(config.model_dst, 'epoch_{:03d}'.format(epoch))
+    cprint('Saving Model --> {}'.format(dst), 'blue')
+    saver.save(sess, dst)
 
 def save_inference_samples(runs_dir, path_test_images, sess, image_shape,
     logits, keep_prob, input_image, epoch='na'):

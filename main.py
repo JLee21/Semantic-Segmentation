@@ -201,7 +201,9 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         print(i)
 
     losses = []
+    mean_ious = []
     for epoch in range(epochs):
+        cprint('epoch {}'.format(epoch), 'blue')
 
         start = time()
         b = 0
@@ -220,43 +222,38 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         #               input_image,
         #               correct_label,
         #               keep_prob)
+
+        # M E A N  I O U
+        mean_iou = helper.compute_mean_iou(sess, logits, input_image, keep_prob)
+        mean_ious.append(mean_iou)
+
         # L O S S
-        logits = sess.run(logits, {input_image: images, keep_prob: 1})
+        _logits = sess.run(logits, {input_image: images, keep_prob: 1})
         softmax = tf.nn.softmax_cross_entropy_with_logits(
             labels=labels,
-            logits=logits
+            logits=_logits
         )
         cross_entropy_loss = tf.reduce_mean(softmax)
         loss = cross_entropy_loss.eval()
         losses.append(loss)
+        cprint('LOSS: {0:3.5f}'.format(loss), 'green', 'on_grey')
 
         # S A V E  M O D E L
-        cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
-        dst = os.path.join(config.model_dst, 'epoch_{:03d}'.format(epoch))
-        cprint('Saving Model --> {}'.format(dst), 'blue')
-        # saver.save(sess, dst)
-
-        # M E A N  I O U
-        mean_iou = helper.compute_mean_iou(sess, logits, input_image, keep_prob)
-
-        # L A B E L  &  P R E D I C T I O N  C O M P A R I S O N
-        # helper.create_visual_stack_images(sess, logits, keep_prob, image_pl=input_image)
+        # helper.save_model(sess=sess, saver=saver, epoch=epoch, start_time=start)
 
         # C R E A T E  T E S T  I M A G E S  &  M O V I E
-        if epoch % config.create_movie_interval == 0:
-            save_inference_samples(
-                runs_dir=config.runs_dir,
-                path_test_images=config.path_test_images,
-                sess=sess,
-                image_shape=config.image_shape,
-                logits=logits,
-                keep_prob=keep_prob,
-                input_image=input_image,
-                epoch=epoch)
+        # if epoch % config.create_movie_interval == 0:
+        #     save_inference_samples(
+        #         runs_dir=config.runs_dir,
+        #         path_test_images=config.path_test_images,
+        #         sess=sess,
+        #         image_shape=config.image_shape,
+        #         logits=logits,
+        #         keep_prob=keep_prob,
+        #         input_image=input_image,
+        #         epoch=epoch)
 
-    plt.title('Cross Entropy Loss')
-    plt.plot(losses)
-    plt.savefig('loss.png')
+    helper.plot_progress(loss=losses, acc=mean_ious)
 
 if test_flag: tests.test_train_nn(train_nn)
 
