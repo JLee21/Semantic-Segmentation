@@ -20,12 +20,12 @@ import matplotlib.pyplot as plt
 
 test_flag = False
 
+# C H E C K S
 # Check TensorFlow Version
 assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), \
     'Use TensorFlow version 1.0 or newer.  You have {}'.format(tf.__version__)
 print('Python Version: {}'.format(sys.version))
 print('TensorFlow Version: {}'.format(tf.__version__))
-
 # Check for a GPU
 if not tf.test.gpu_device_name():
     warnings.warn('No GPU found. Please use a GPU to train your neural network.')
@@ -124,8 +124,8 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
         name='output_layer')
 
     cprint('Layers Constructed', 'blue', 'on_white')
-
     return output
+
 if test_flag: tests.test_layers(layers)
 
 
@@ -216,10 +216,6 @@ def run():
     # Download pretrained vgg model
     helper.maybe_download_pretrained_vgg(config.data_dir)
 
-    # OPTIONAL: Train and Inference on the cityscapes dataset instead of the Kitti dataset.
-    # You'll need a GPU with at least 10 teraFLOPS to train on.
-    #  https://www.cityscapes-dataset.com/
-
     with tf.Session() as sess:
         writer = tf.summary.FileWriter('tensorboard')
 
@@ -227,17 +223,15 @@ def run():
         vgg_path = os.path.join(config.data_dir, 'vgg')
         # Create function to get batches
 
-        get_batches_fn = helper.gen_batch_function(config.path_train_images,
-            config.image_shape)
+        get_batches_fn = helper.gen_batch_function(config.path_train_images, config.image_shape)
         images, labels = next(get_batches_fn(3))
         helper.print_data_info(images, labels)
 
-        # # OPTIONAL: Augment Images for better results
-        # #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
-        #
+
         # Build NN using load_vgg, layers, and optimize function
         input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path=vgg_path)
-        #
+
+        # L A Y E R S
         nn_last_layer = layers(layer3_out, layer4_out, layer7_out, config.num_classes)
         # writer.add_graph(sess.graph)
 
@@ -268,8 +262,6 @@ def run():
                  path_test_images=config.path_test_images)
 
         cprint('TOTAL time --> {0:3.2f}m'.format((time()-start)/60), 'yellow')
-
-        # OPTIONAL: Apply the trained model to a video
 
 
 if __name__ == '__main__':
