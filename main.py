@@ -230,7 +230,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         print('softmax shape ', softmax.shape)
         cross_entropy_loss = tf.reduce_mean(softmax)
         loss = cross_entropy_loss.eval()
-        print('cross_entropy_loss {}'.format(loss), 'blue')
+        cprint('cross_entropy_loss {}'.format(loss), 'blue')
         losses.append(loss)
 
         # S A V E  M O D E L
