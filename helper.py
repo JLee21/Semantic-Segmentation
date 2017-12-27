@@ -16,6 +16,7 @@ from movie import create_movie
 import config
 # remove before submitting
 from matplotlib import pyplot as plt
+plt.style.use('fivethirtyeight')
 
 
 class DLProgress(tqdm):
@@ -295,6 +296,13 @@ def create_visual_stack_images(sess, logits, keep_prob, image_pl):
 
         dst = os.path.join(config.visual_dir, '{:03d}.png'.format(i))
         scipy.misc.imsave(dst, z)
+
+def plot_losses(losses):
+    helper.plot_losses(losses)
+    plt.title('Cross Entropy Loss')
+    plt.xlabel('Epochs')
+    plt.plot(losses)
+    plt.savefig('img/loss.png')
 
 def save_inference_samples(runs_dir, path_test_images, sess, image_shape,
     logits, keep_prob, input_image, epoch='na'):

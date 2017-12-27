@@ -202,10 +202,12 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
 
     losses = []
     for epoch in range(epochs):
+        cprint('epoch {}'.format(epoch), 'blue')
 
         start = time()
         b = 0
         for images, labels in tqdm(get_batches_fn(batch_size)):
+            print('\nimages shape', images.shape)
             sess.run(train_op, feed_dict={input_image: images,
                                           correct_label: labels,
                                           keep_prob: 0.5})
@@ -220,17 +222,17 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         #               input_image,
         #               correct_label,
         #               keep_prob)
-        logits = sess.run(logits, {input_image: images, keep_prob: 1})
-
-        print('logits shape ', logits.shape)
+        _logits = sess.run(logits, {input_image: images, keep_prob: 1})
+        #
+        print('logits shape ', _logits.shape)
         softmax = tf.nn.softmax_cross_entropy_with_logits(
             labels=labels,
-            logits=logits
+            logits=_logits
         )
         print('softmax shape ', softmax.shape)
         cross_entropy_loss = tf.reduce_mean(softmax)
         loss = cross_entropy_loss.eval()
-        print('cross_entropy_loss {}'.format(loss), 'blue')
+        cprint('cross_entropy_loss {}'.format(loss), 'blue')
         losses.append(loss)
 
         # S A V E  M O D E L
@@ -246,20 +248,18 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         # helper.create_visual_stack_images(sess, logits, keep_prob, image_pl=input_image)
 
         # C R E A T E  T E S T  I M A G E S  &  M O V I E
-        if epoch % config.create_movie_interval == 0:
-            save_inference_samples(
-                runs_dir=config.runs_dir,
-                path_test_images=config.path_test_images,
-                sess=sess,
-                image_shape=config.image_shape,
-                logits=logits,
-                keep_prob=keep_prob,
-                input_image=input_image,
-                epoch=epoch)
+        # if epoch % config.create_movie_interval == 0:
+        #     save_inference_samples(
+        #         runs_dir=config.runs_dir,
+        #         path_test_images=config.path_test_images,
+        #         sess=sess,
+        #         image_shape=config.image_shape,
+        #         logits=logits,
+        #         keep_prob=keep_prob,
+        #         input_image=input_image,
+        #         epoch=epoch)
 
-    plt.title('Cross Entropy Loss')
-    plt.plot(losses)
-    plt.savefig('loss.png')
+    helper.plot_losses(losses)
 
 if test_flag: tests.test_train_nn(train_nn)
 
