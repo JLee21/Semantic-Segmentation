@@ -140,16 +140,37 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     """
     logits = tf.reshape(nn_last_layer, (-1, num_classes))
 
-    softmax = tf.nn.softmax_cross_entropy_with_logits(labels=correct_label, logits=logits,
+    softmax = tf.nn.softmax_cross_entropy_with_logits(
+        labels=correct_label,
+        logits=logits,
         name='logits')
+
     cross_entropy_loss = tf.reduce_mean(softmax)
 
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+
     train_op = optimizer.minimize(cross_entropy_loss,
         name='train_op')
 
     return logits, train_op, cross_entropy_loss
+
 if test_flag: tests.test_optimize(optimize)
+
+def evaluate_loss():
+
+    get_batches_fn = helper.gen_batch_function(data_folder=config.path_train_images,
+                                               image_shape=config.image_shape)
+
+    get_batches_gen = gen_batch_fn(config.batch_size_loss)
+
+    for images, labels in get_batches_gen:
+        loss = sess.run(cross_entropy_loss,
+                         feed_dict={
+                            input_image: images,
+                            labels: labels,
+                            keep_prob: 1
+                         })
+         print('loss', loss)
 
 
 def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
@@ -178,17 +199,20 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         start = time()
         b = 0
         for images, labels in tqdm(get_batches_fn(batch_size)):
-            sess.run(train_op, feed_dict={input_image: images,
+            output = sess.run(train_op, feed_dict={input_image: images,
                                           correct_label: labels,
                                           keep_prob: 0.5})
+
+            print('output\n', output)
             b += 1
-            # if b == 1: break
+            if b == 1: break
+            sys.exit()
 
         # S A V E  M O D E L
         cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
         dst = os.path.join(config.model_dst, 'epoch_{:03d}'.format(epoch))
         cprint('Saving Model --> {}'.format(dst), 'blue')
-        saver.save(sess, dst)
+        # saver.save(sess, dst)
 
         # M E A N  I O U
         helper.compute_mean_iou(sess, logits, input_image, keep_prob)

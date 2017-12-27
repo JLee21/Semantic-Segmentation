@@ -8,7 +8,8 @@ Image_Shape = namedtuple('Image_Shape', 'x y')
 num_classes = 2
 image_shape = Image_Shape(x=576, y=160)
 EPOCHS = 15
-BATCH_SIZE = 1
+BATCH_SIZE = 1 # GTX 1050 can only support a size of 1
+batch_size_loss = 1
 LRN_RATE = 1e-3
 data_dir = './data'
 runs_dir = './runs'
