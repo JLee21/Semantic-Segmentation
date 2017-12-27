@@ -158,7 +158,7 @@ def gen_batch_function_visual_stack(data_folder, image_shape):
     return get_batches_visual_stack_fn
 
 def define_mean_iou(ground_truth, prediction, num_classes):
-    """ compute the mean IOU
+    """ define the mean IOU TF operation
     """
     # print('shape of labels ', ground_truth.shape)       # (1, 160, 576, 2)
     # print('shape of prediction ', prediction.shape)  # (92160, 2)
@@ -254,7 +254,6 @@ def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_s
         file_name = '{:03d}.png'.format(i)
 
         yield (file_name, z)
-
 
 def plot_progress(loss, acc):
     fig = plt.figure()
