@@ -30,15 +30,15 @@ With this in mind, the loss value is computed on the same single image and the M
 
 ### Epoch 1
 
-![]()
+![](https://github.com/JLee21/Semantic-Segmentation/blob/master/img/epoch01.gif)
 
 ### Epoch 2
 
-![]()
+![](https://github.com/JLee21/Semantic-Segmentation/blob/master/img/epoch02.gif)
 
 ### Epoch 5
 
-![]()
+![](https://github.com/JLee21/Semantic-Segmentation/blob/master/img/epoch05.gif)
 
 ### Progress Chart Over 5 Epochs
 
