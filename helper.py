@@ -87,7 +87,7 @@ def gen_batch_function(data_folder, image_shape):
         label_paths = {
             re.sub(r'_(lane|road)_', '_', os.path.basename(path)): path
             for path in glob(os.path.join(data_folder, 'gt_image_2', '*_road_*.png'))}
-        # the 'color' that represents drivable road
+        # the 'color' that represents non-drivable area in the image
         background_color = np.array([255, 0, 0])
 
         image_shape = (config.image_shape.y, config.image_shape.x)
@@ -190,20 +190,26 @@ def compute_mean_iou(sess, logits, input_image, keep_prob):
     pred_thresh = prediction > 0.5
     prediction[pred_thresh] = 1
 
-    # print(prediction)
-    # plt.title('prediction'); plt.imshow(prediction[0], cmap='gray'); plt.show()
+    labels_thresh = labels == True
+    labels[labels_thresh] = 1
+    labels_thresh = labels == False
+    labels[labels_thresh] = 0
 
-    # labels = labels[:,:,:,1]
-    # print(labels[0])
-    # plt.title('labels'); plt.imshow(labels[0], cmap='gray'); plt.show()
+    # prediction = prediction.reshape(-1, 2)
+    # labels = labels.reshape(-1, 2)
 
-    # print('img shape {} -- labels shape {}'.format(prediction.shape, labels.shape))
+    print(labels)
+
+    print('prediction shape {} -- labels shape {}'.format(prediction.shape, labels.shape))
 
     # plt.imshow(labels[0][:,:,1], cmap='gray'); plt.show()
     # plt.imshow(prediction[0][:,:,1], cmap='gray'); plt.show()
 
     iou, iou_op = define_mean_iou(labels, prediction, num_classes=config.num_classes)
     sess.run(tf.local_variables_initializer())
+    mean_mat = sess.run(iou_op)
+    print('mean_io,{}'.format(mean_mat), 'green', 'on_grey')
+    mean
     cprint('MEAN IOU: {0:3.5f}'.format(sess.run(iou)), 'green', 'on_grey')
 
 def gen_test_output(sess, logits, keep_prob, image_pl, path_test_images, image_shape):

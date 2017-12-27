@@ -220,17 +220,14 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         #               input_image,
         #               correct_label,
         #               keep_prob)
+        # L O S S
         logits = sess.run(logits, {input_image: images, keep_prob: 1})
-
-        print('logits shape ', logits.shape)
         softmax = tf.nn.softmax_cross_entropy_with_logits(
             labels=labels,
             logits=logits
         )
-        print('softmax shape ', softmax.shape)
         cross_entropy_loss = tf.reduce_mean(softmax)
         loss = cross_entropy_loss.eval()
-        cprint('cross_entropy_loss {}'.format(loss), 'blue')
         losses.append(loss)
 
         # S A V E  M O D E L
@@ -240,7 +237,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
         # saver.save(sess, dst)
 
         # M E A N  I O U
-        helper.compute_mean_iou(sess, logits, input_image, keep_prob)
+        mean_iou = helper.compute_mean_iou(sess, logits, input_image, keep_prob)
 
         # L A B E L  &  P R E D I C T I O N  C O M P A R I S O N
         # helper.create_visual_stack_images(sess, logits, keep_prob, image_pl=input_image)

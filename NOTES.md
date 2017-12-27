@@ -9,16 +9,19 @@
 
 DICE
 
-https://github.com/asanakoy/kaggle_carvana_segmentation/blob/master/ternaus/src/train.py
+  https://github.com/asanakoy/kaggle_carvana_segmentation/blob/master/ternaus/src/train.py
 
-def get_dice(y_true, y_pred):
-    epsilon = 1e-15
-    intersection = (y_pred * y_true).sum(dim=-2).sum(dim=-1)
-    union = y_true.sum(dim=-2).sum(dim=-1) + y_pred.sum(dim=-2).sum(dim=-1) + epsilon
+  def get_dice(y_true, y_pred):
+      epsilon = 1e-15
+      intersection = (y_pred * y_true).sum(dim=-2).sum(dim=-1)
+      union = y_true.sum(dim=-2).sum(dim=-1) + y_pred.sum(dim=-2).sum(dim=-1) + epsilon
 
-    return 2 * (intersection / union).mean()
+      return 2 * (intersection / union).mean()
 
-from scipy.spatial.distance import dice
+      from scipy.spatial.distance import dice
+
+MEAN IOU
+  IOU = true_positive / (true_positive + false_positive + false_negative)
 
 
 tf.InteractiveSession
