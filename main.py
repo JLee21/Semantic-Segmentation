@@ -182,13 +182,13 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
                                           correct_label: labels,
                                           keep_prob: 0.5})
             b += 1
-            if b == 1: break
+            # if b == 1: break
 
         # S A V E  M O D E L
         cprint('EPOCH {0:2d} time --> {1:3.2f}m'.format(epoch, (time()-start)/60), 'blue', 'on_white')
         dst = os.path.join(config.model_dst, 'epoch_{:03d}'.format(epoch))
         cprint('Saving Model --> {}'.format(dst), 'blue')
-        # saver.save(sess, dst)
+        saver.save(sess, dst)
 
         # M E A N  I O U
         helper.compute_mean_iou(sess, logits, input_image, keep_prob)
